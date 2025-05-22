@@ -1,0 +1,276 @@
+---
+title: Installasi Laravel 10 + php8.1 + MySQL + phpMyAdmin + Nginx Reverse Proxy
+author: "fadharpra"
+date: 2023-03-30 13:06:00
+cover:
+  alt: Docker and Laravel logo
+  image: ../../assets/blog-cover/1.jpg
+excerpt: <Badge text="Konten berikut masih melalukan perbaikian, mohon diperhatikan sebelum membacanya!" variant="caution" size="large" /> Pada artikel ini akan menjelaskan bagaimana menjalankan Laravel 10 + PHP-FPM 8.1 + MySQL + phpMyAdmin menggunakan docker-compose.
+description: |
+  Panduan lengkap instalasi Laravel 10 dengan PHP 8.1, MySQL, phpMyAdmin, dan Nginx Reverse Proxy menggunakan Docker Compose.
+tags:
+  - Docker
+  - Docker Compose
+  - Laravel
+  - MySQL
+  - phpMyAdmin
+---
+
+import { FileTree } from '@astrojs/starlight/components';
+import { Aside } from '@astrojs/starlight/components';
+import { Badge } from '@astrojs/starlight/components';
+
+---
+<Badge text="Konten berikut masih melalukan perbaikian, mohon diperhatikan sebelum membacanya!" variant="caution" size="large" />
+---
+
+<Aside type="caution">
+Docker Compose versi terbaru tidak lagi memerlukan deklarasi `version`. Namun, jika Anda menggunakan Docker Compose versi lama (sebelum 2.x), tetap sertakan `version: '3.9'` untuk kompatibilitas.
+</Aside>
+
+## Pendahuluan
+
+Artikel ini menjelaskan bagaimana menjalankan Laravel 10 + PHP-FPM 8.1 + MySQL + phpMyAdmin menggunakan Docker Compose. Pastikan Anda sudah memiliki **Hosting/VPS/Cloud** dengan sistem operasi **Linux Ubuntu 22.04**.
+
+---
+
+## Struktur Direktori
+
+<FileTree>
+- Dockerfile
+- docker-compose.yml
+- config/
+  - apps/
+    - apps/
+    - conf.d/
+      - docker-php-ext-bcmath.ini
+      - docker-php-ext-gd.ini
+      - docker-php-ext-mysqli.ini
+      - docker-php-ext-pdo_mysql.ini
+      - docker-php-ext-zip.ini
+      - www.conf
+      - zz-docker.conf
+    - php.ini
+</FileTree>
+
+---
+
+## Step 1 - Installasi Docker Engine
+
+<Aside type="note">
+Pastikan sistem Anda sudah diperbarui sebelum menginstal Docker untuk menghindari konflik dependensi.
+</Aside>
+
+```bash
+sudo apt-get update -y \
+sudo apt-get install \
+ca-certificates \
+curl \
+gnupg \
+lsb-release
+```
+
+Tambahkan GPG key resmi Docker:
+
+```bash
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+```
+
+Lanjutkan dengan instalasi Docker Engine:
+
+```bash
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+```
+
+Verifikasi instalasi:
+
+```bash
+sudo docker run hello-world
+```
+
+---
+
+## Step 2 - Installasi Docker Compose dan Service Pendukung
+
+<Aside type="caution">
+Versi Docker Compose dapat berbeda tergantung pada sistem Anda. Periksa kompatibilitas sebelum mengunduh.
+</Aside>
+
+Unduh dan install Docker Compose:
+
+```bash
+sudo curl -L "https://github.com/docker/compose/releases/download/v2.16.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+```
+
+Buat file **docker-compose.yml** yang akan digunakan:
+
+```yaml title="docker-compose.yml"
+services:
+  laravel:
+    image: php:8.1-fpm
+    container_name: laravel-demo
+    hostname: laravel-demo
+    restart: always
+    build:
+        context: .
+        dockerfile: Dockerfile
+    volumes:
+      - /var/www/apps-demo:/var/www/apps-demo
+      - ./config/apps/php.ini:/usr/local/etc/php/php.ini
+      - ./config/apps/conf.d:/usr/local/etc/php/conf.d
+      - ./config/apps/conf.d/zz-docker.conf:/usr/local/etc/php-fpm.d/zz-docker.conf
+    entrypoint: ["php-fpm"]
+    tty: true
+    ports:
+      - 9000:9000
+    networks:
+      net1:
+        ipv4_address: 10.10.0.10
+
+networks:
+  net1:
+    name: Laravel-net
+    driver: bridge
+    ipam:
+       config:
+         - subnet: 10.10.0.0/24
+           gateway: 10.10.0.254
+```
+
+<Aside type="tip">
+Pastikan direktori **/var/www/apps-demo** telah dibuat sebelum menjalankan container Laravel.
+</Aside>
+
+---
+
+## Step 3 - Instalasi MySQL dan phpMyAdmin
+
+Tambahkan konfigurasi berikut ke **docker-compose.yml** untuk menjalankan MySQL:
+
+```yaml title="docker-compose.yml"
+database:
+    image: mysql:8.0
+    container_name: mysql-database
+    hostname: database
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: admin
+      MYSQL_USER: user
+      MYSQL_PASSWORD: user
+      MYSQL_ROOT_HOST: '%'
+    volumes:
+      - mysqldata:/var/lib/mysql
+    ports:
+      - 3306:3306
+    networks:
+      net1:
+        ipv4_address: 10.10.0.2
+
+volumes:
+  mysqldata:
+```
+
+Tambahkan juga konfigurasi **phpMyAdmin**:
+
+```yaml title="docker-compose.yml"
+phpmyadmin:
+    image: phpmyadmin
+    container_name: phpmyadmin
+    hostname: phpmyadmin
+    depends_on:
+      - database
+    restart: always
+    ports:
+      - 8090:80
+    environment:
+      PMA_HOST: database
+      MYSQL_ROOT_PASSWORD: admin
+    networks:
+      net1:
+        ipv4_address: 10.10.0.3
+```
+
+<Aside type="caution">
+Gunakan password yang lebih aman untuk database MySQL Anda dan hindari menggunakan kredensial default dalam produksi.
+</Aside>
+
+---
+
+## Step 4 - Menjalankan Docker Compose
+
+Bangun image Docker:
+
+```bash
+docker-compose build
+```
+
+Jalankan semua container:
+
+```bash
+docker-compose up -d
+```
+
+Verifikasi apakah container berjalan:
+
+```bash
+docker ps -a
+```
+
+---
+
+## Step 5 - Konfigurasi Nginx sebagai Reverse Proxy
+
+<Aside type="note">
+Pastikan Nginx sudah terinstal di server sebelum membuat konfigurasi ini.
+</Aside>
+
+Buat file konfigurasi Nginx di **/etc/nginx/sites-available/laravel.conf**:
+
+```nginx title="laravel.conf"
+server {
+    listen 80;
+    index index.php index.html;
+    error_log  /var/log/nginx/laravel-error.log;
+    access_log /var/log/nginx/laravel-access.log;
+    root /var/www/apps-demo/public;
+
+    location ~ \.php$ {
+        try_files $uri =404;
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        fastcgi_pass localhost:9000;
+        fastcgi_index index.php;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param PATH_INFO $fastcgi_path_info;
+    }
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+        gzip_static on;
+    }
+}
+```
+
+Aktifkan konfigurasi dengan membuat symlink:
+
+```bash
+ln -s /etc/nginx/sites-available/laravel.conf /etc/nginx/sites-enabled/laravel.conf
+```
+
+Restart Nginx:
+
+```bash
+systemctl restart nginx
+```
+
+<Aside type="tip">
+Akses aplikasi Laravel melalui
+```
+http://your-ip-address-or-domain
+```
+dan phpMyAdmin melalui
+```
+http://your-ip-address-or-domain:8090
+```
+</Aside>

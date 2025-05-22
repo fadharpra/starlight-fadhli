@@ -1,0 +1,106 @@
+---
+title: Deploy MongoDB pada Docker dengan menggunakan Docker-Compose
+author: "fadharpra"
+date: 2023-05-31 13:06:00
+cover:
+  alt: Docker and MongoDB logo
+  image: ../../assets/blog-cover/docker-mongodb.jpg
+excerpt: Pada Artikel ini akan menjelaskan bagaimana Deploy database MongoDB pada Docker dengan menggunakan Docker-Compose.
+tags:
+  - Docker
+  - Docker Compose
+  - Containerization
+  - MongoDB
+  - Database
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Pada Artikel ini akan menjelaskan bagaimana Deploy database MongoDB pada Docker dengan menggunakan Docker-Compose.
+
+## Step 1 — Membuat file `docker-compose.yml`
+
+<Aside type="note">
+Docker Compose adalah alat yang digunakan untuk menjalankan dan mengelola aplikasi yang terdiri dari beberapa container Docker. Dengan menggunakan Docker Compose, Anda dapat mengonfigurasi dan menjalankan beberapa container dalam satu lingkungan yang sama, mempermudah pengelolaan aplikasi secara keseluruhan.
+</Aside>
+
+<Aside type="caution">
+Docker Compose versi terbaru tidak lagi memerlukan deklarasi `version`. Namun, jika Anda menggunakan Docker Compose versi lama (sebelum 2.x), tetap sertakan `version: '3.9'` untuk kompatibilitas.
+</Aside>
+
+```yaml title="docker-compose.yml"
+services:
+  db:
+    container_name: mongodb-demo
+    hostname: mongodb-demo
+    image: mongo:latest
+    tty: true
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: rootpassword
+    ports:
+      - 27017:27017
+      - 28017:28017
+    volumes:
+      - data:/data/db
+    networks:
+      net2:
+        ipv4_address: 11.11.0.101
+
+volumes:
+  data:
+
+networks:
+  net2:
+    name: Golang-net
+    driver: bridge
+    ipam:
+       config:
+         - subnet: 11.11.0.0/24
+           gateway: 11.11.0.254
+```
+
+### **Breakdown**
+- `services:` merupakan bagian dari file konfigurasi yang mendefinisikan layanan apa saja yang akan dijalankan dalam Docker container.
+- `db:` adalah nama dari layanan yang didefinisikan, dan selanjutnya diikuti dengan konfigurasi dari layanan tersebut.
+- `container_name:` mongodb-demo menentukan nama kontainer MongoDB yang akan dibuat.
+- `hostname:` mongodb-demo menentukan nama host kontainer MongoDB.
+- `image:` mongo:latest menentukan gambar Docker yang digunakan untuk layanan MongoDB. Di sini, menggunakan gambar mongo:latest yang merupakan versi terbaru dari MongoDB.
+- `tty:` true mengalokasikan terminal pada kontainer.
+- `environment:` mengatur variabel lingkungan yang akan digunakan dalam kontainer. Di sini, MONGO_INITDB_ROOT_USERNAME diatur sebagai `root` dan MONGO_INITDB_ROOT_PASSWORD diatur sebagai `rootpassword`. Ini akan digunakan sebagai username dan password root untuk MongoDB.
+- `ports:` menetapkan penjajaran port antara host dan kontainer MongoDB. Pada contoh ini, port 27017 pada host akan diarahkan ke port 27017 pada kontainer MongoDB, dan port 28017 pada host akan diarahkan ke port 28017 pada kontainer MongoDB.
+- `volumes:` menetapkan volume Docker yang akan digunakan untuk menyimpan data MongoDB. Pada contoh ini, volume dengan nama `data` akan terhubung ke direktori `/data/db` di dalam kontainer MongoDB. Ini memungkinkan data MongoDB untuk disimpan secara persisten di volume tersebut.
+- `networks:` menetapkan jaringan Docker yang akan digunakan untuk menghubungkan kontainer MongoDB. Di sini, layanan MongoDB akan terhubung ke jaringan dengan nama `Golang-net` dan diberikan alamat IPv4 statis `11.11.0.101`.
+- `data:` adalah nama volume Docker yang akan digunakan untuk menyimpan data MongoDB. Volume ini akan terhubung ke direktori `/data/db` di dalam kontainer MongoDB.
+- `net2:` adalah nama jaringan Docker yang akan digunakan untuk menghubungkan kontainer MongoDB. Jaringan ini menggunakan driver `bridge` dan memiliki konfigurasi IPAM yang menetapkan - subnet `11.11.0.0/24` dan gateway `11.11.0.254`.
+
+
+<Aside type="tip">
+Pastikan Anda telah menginstal Docker dan Docker Compose sebelum menjalankan perintah berikut.
+</Aside>
+
+---
+
+## Step 2 — Menjalankan MongoDB
+
+Setelah membuat file `docker-compose.yml`, jalankan perintah berikut untuk memulai MongoDB:
+
+```bash
+docker-compose up -d
+```
+
+Verifikasi apakah container MongoDB sudah berjalan:
+
+```bash
+docker ps -a
+```
+
+<Aside type="caution">
+Jika container tidak berjalan, periksa logs dengan `docker logs mongodb-demo` untuk melihat penyebab issue yang ada.
+</Aside>
+
+Setelah MongoDB berjalan, Anda dapat mengaksesnya dengan klien MongoDB atau tools seperti **Robo 3T**.
+
+<Aside type="note">
+Pastikan firewall dan aturan keamanan jaringan Anda mengizinkan koneksi ke MongoDB jika ingin diakses dari luar container.
+</Aside>

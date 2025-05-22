@@ -1,0 +1,459 @@
+---
+title: Installasi Laravel 10 + php8.1 + MySQL + phpMyAdmin + Nginx Reverse Proxy
+author: "fadharpra"
+date: 2023-30-03 13:06:00
+cover:
+  alt: Docker and Laravel logo
+  image: ../../../assets/blog-cover/1.jpg
+description: |
+  
+tags:
+  - Docker
+  - Docker Compose
+  - Laravel
+  - MySQL
+  - phpMyAdmin
+---
+import { FileTree } from '@astrojs/starlight/components';
+import { Aside } from '@astrojs/starlight/components';
+
+<Aside type="caution">
+Docker Compose versi terbaru tidak lagi memerlukan deklarasi `version`. Namun, jika Anda menggunakan Docker Compose versi lama (sebelum 2.x), tetap sertakan `version: '3.9'` untuk kompatibilitas.
+</Aside>
+
+Pada artikel ini akan menjelaskan bagaimana menjalankan Laravel 10 + PHP-FPM 8.1 + MySQL + phpMyAdmin menggunakan docker-compose. Anggap saja kita sudah mempunyai server Hosting/VPS/Cloud yang telah kita pasang Sistem Operasi Linux Ubuntu 22.04.
+Berikut adalah daftar-daftar yang akan kita lakukan pada Docker
+- **PHP-FPM 8.1** dengan file **Laravel 10**
+- Database **MySQL 8**
+- **phpMyAdmin**
+
+Perlu diingat bahwa Image yang dipakai dapat disesuaikan dengan versi yang dibutuhkan oleh masing-masing keperluan, misalkan anda ingin menggunakan Image PHP-FPM 7.4 atau Image MySQL 8 kebawah.
+Mari kita mulai!
+
+### Step 1 - Installasi Docker Engine
+Tahap awal yaitu memasang Docker Engine pada Ubuntu 22.04. Pemasangan Docker menggunakan referensi dari Dokumentasi Docker Resmi
+Update index apt dan pasang paket agar bisa menggunakan repository
+```bash
+sudo apt-get update -y \
+sudo apt-get install \
+ca-certificates \
+curl \
+gnupg \
+lsb-release
+```
+
+Tambahkan Docker's official GPG key
+
+```bash
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+```
+
+Lalu update kembali index apt
+
+```bash
+sudo apt-get update -y
+```
+
+Terakhir install Docker Engine dengan versi yang terbaru
+
+```bash
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+```
+
+Verifikasi apakah docker sudah dipasang dan dapat digunakan
+
+```bash
+sudo docker run hello-world
+```
+
+### Step 2 - Installasi docker-compose serta service pendukung
+Tahap ini bertujuan untuk memasang docker-compose dengan cara mengunduh file docker-compose pada repository github
+
+Jalankan command berikut untuk mengunduh docker-compose dan docker-compose akan disimpan pada direktori `/usr/local/bin`
+
+```bash
+sudo curl -L "https://github.com/docker/compose/releases/download/v2.16.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+```
+
+Jalankan command berikut agar file docker-compose bisa dieksekusi oleh user
+
+```bash
+chmod +x /usr/local/bin/docker-compose
+```
+
+Jalankan command berikut untuk verifikasi apakah docker-compose dapat digunakan
+
+```bash
+docker-compose -v
+```
+
+Install service pendukung
+
+```bash
+sudo apt-get install nginx wget curl links nano unzip net-tools git -y
+```
+
+### Step 3 - Membuat file docker-compose
+
+> _Docker Compose adalah alat yang digunakan untuk menjalankan dan mengelola aplikasi yang terdiri dari beberapa container Docker. Dengan menggunakan Docker Compose, Anda dapat mengonfigurasi dan menjalankan beberapa container dalam satu lingkungan yang sama, mempermudah pengelolaan aplikasi secara keseluruhan._
+
+Service yang akan dipasang
+- **PHP-FPM 8.1**
+- **MySQL 8**
+- **phpMyAdmin**
+
+Sebelum melakukan deployment, harap clone repository dari link berikut https://github.com/fadharpra/docker.git pada repository tersebut terdapat file config php yang akan digunakan oleh container image php
+
+**PHP-FPM 8.1**
+Image ini berfungsi sebagai aplication layer. Tidak seperti Apache, Nginx menggunakan PHP-FPM untuk memisahkan proses yang akan menangai aplikasi kita yang menggunakan PHP. Sebenarnya Apache mampu untuk menjalankan php dengan menggunakan module `mod_php`
+
+Siapkan file yang bernama docker-compose.yml dan isi file tersebut dalan satu folder seperti gambar dibawah ini
+
+```yaml title="docker-compose.yaml"
+services:
+  laravel:
+    image: php:8.1-fpm
+    container_name: laravel-demo
+    hostname: laravel-demo
+    restart: always
+    build:
+        context: .
+        dockerfile: Dockerfile
+    volumes:
+      - /var/www/apps-demo:/var/www/apps-demo
+      - ./config/apps/php.ini:/usr/local/etc/php/php.ini
+      - ./config/apps/conf.d:/usr/local/etc/php/conf.d
+      - ./config/apps/conf.d/zz-docker.conf:/usr/local/etc/php-fpm.d/zz-docker.conf
+    entrypoint: ["php-fpm"]
+    tty: true
+    ports:
+      - 9000:9000
+    networks:
+      net1:
+        ipv4_address: 10.10.0.10
+
+networks:
+  net1:
+    name: Laravel-net
+    driver: bridge
+    ipam:
+       config:
+         - subnet: 10.10.0.0/24
+           gateway: 10.10.0.254
+```
+
+**Breakdown**
+- `services` adalah bagian utama dari file konfigurasi yang mendefinisikan layanan yang akan dijalankan.
+- `laravel` adalah nama layanan yang diberikan. anda dapat mengganti nama ini sesuai dengan kebutuhan.
+- `image`: php:8.1-fpm menentukan image docker yang akan digunakan untuk menjalankan layanan. pada contoh ini menggunakan image "php:8.1-fpm" sebagai basis untuk menjalankan aplikasi laravel.
+- `container_name`: laravel-demo menentukan nama untuk container docker yang akan dibuat ketika layanan dijalankan. pada contoh ini, container akan diberi nama "laravel-demo".
+- `hostname`: laravel-demo menentukan nama host untuk container docker yang dibuat. pada contoh ini, host akan diberi nama "laravel-demo".
+- `restart`: always menentukan bahwa container akan selalu dijalankan ulang jika terhenti.
+- `build` menentukan konfigurasi untuk membangun gambar docker jika tidak tersedia. pada contoh ini, akan menggunakan file dockerfile dalam direktori yang sama dengan file docker-compose.yml.
+- `volumes` menentukan konfigurasi volume untuk digunakan oleh container. pada contoh ini, konfigurasi ini akan memetakan volume di host dengan volume di dalam container.
+- `entrypoint`: ["php-fpm"] menentukan perintah entrypoint untuk container. pada contoh ini, akan menjalankan "php-fpm" ketika container dijalankan.
+- `tty`: true menentukan apakah container harus memiliki terminal terkait atau tidak.
+- `ports` menentukan port yang akan diekspos pada host. pada contoh ini, port 9000 dihost akan terkait dengan port 9000 di dalam container.
+- `networks` menentukan konfigurasi jaringan yang akan digunakan oleh container. pada contoh ini, digunakan jaringan bernama "net1" dengan alamat ipv4 10.10.0.10.
+- `networks`: net1 menentukan nama jaringan yang akan digunakan.
+- `driver`: bridge menentukan jenis driver jaringan yang akan digunakan. pada contoh ini menggunakan driver "bridge".
+- `ipam` menentukan konfigurasi pengaturan ip address management (ipam) untuk jaringan. pada contoh ini, digunakan subnet 10.10.0.0/24 dengan gateway 10.10.0.254.
+
+Selanjutnya kita membuat file Dockerfile yang berfungsi untuk membangun sebuah image Docker. Image Docker adalah sebuah template yang berisi instruksi-instruksi yang digunakan untuk membuat sebuah container.
+
+```bash
+FROM php:8.1-fpm
+RUN apt-get update && apt-get upgrade -y \
+        net-tools \
+        libfreetype6-dev \
+        libjpeg62-turbo-dev \
+        libpng-dev \
+        libzip-dev \
+        libicu-dev g++ \
+        nano \
+	curl \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install -j$(nproc) gd
+RUN docker-php-ext-install mysqli && docker-php-ext-install pdo && docker-php-ext-install pdo_mysql && docker-php-ext-install iconv && docker-php-ext-install zip && docker-php-ext-install bcmath && docker-php-ext-enable mysqli && docker-php-ext-enable pdo && docker-php-ext-enable pdo_mysql && docker-php-ext-enable iconv && docker-php-ext-enable zip &&  docker-php-ext-enable bcmath
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+RUN apt install software-properties-common -y && apt update -y 
+RUN apt-get install libreoffice -y
+RUN apt-get install -y imagemagick ttf* 
+RUN fc-cache -f -v
+RUN apt-get update && apt-get install -y libmagickwand-dev --no-install-recommends && rm -rf /var/lib/apt/lists/*
+RUN printf "\n" | pecl install imagick
+RUN docker-php-ext-enable imagick
+	
+RUN echo 'alias ll="ls -a"' >> ~/.bashrc
+
+WORKDIR /var/www/apps01
+EXPOSE 9002 9000
+```
+**Breakdown**
+- `FROM php:8.1-fpm` mengambil gambar Docker yang digunakan sebagai basis untuk gambar yang akan dibangun. Pada contoh ini menggunakan gambar "php:8.1-fpm" sebagai basis.
+- `RUN apt-get update && apt-get upgrade -y \ net-tools \ libfreetype6-dev \ libjpeg62-turbo-dev \ libpng-dev \ libzip-dev \ libicu-dev g++ \ nano \ curl \` menjalankan perintah update dan upgrade pada sistem operasi. Selanjutnya menginstal beberapa paket yang dibutuhkan seperti net-tools, libfreetype6-dev, libjpeg62-turbo-dev, libpng-dev, libzip-dev, libicu-dev, g++, nano, dan curl.
+- `&& docker-php-ext-configure gd - with-freetype - with-jpeg \ && docker-php-ext-install -j$(nproc) gd` melakukan konfigurasi ekstensi gd pada PHP dan melakukan instalasi ekstensi gd pada PHP.
+- `RUN docker-php-ext-install ... && docker-php-ext-enable ...` melakukan installasi extensi mysql, pdo, pdo_mysql, mysqli, iconv, zip, bcmath pada PHP dan mengaktifkan extensi tersebut
+- `RUN curl -sS https://getcomposer.org/installer | php - - install-dir=/usr/local/bin - filename=composer` mengunduh dan menginstal Composer sebagai dependency manager untuk PHP.
+- `RUN apt install software-properties-common -y && apt update -y` melakukan instalasi software-properties-common dan update pada sistem operasi.
+- `RUN echo 'alias ll="ls -a"' >> ~/.bashrc` menambahkan alias pada file .bashrc yang berada pada home directory.
+- `WORKDIR /var/www/apps-demo` menentukan direktori kerja pada saat container dijalankan.
+- `EXPOSE 9000` menentukan port yang akan digunakan pada saat container dijalankan.
+
+Siapkan aplikasi Laravel, dan simpan pada direktori `/var/www/apps-demo`
+
+Lalu jalankan perintah docker-compose build untuk membuat image sebuah image
+
+```bash
+docker-compose build
+```
+
+Setelah proses build image selesai, terakhir jalankan docker container
+
+```bash
+docker-compose up -d
+```
+
+Untuk melihat apakah Docker Container telah berjalan dapat menggunakan perintah:
+
+```bash
+docker ps -a
+```
+
+**NGINX**
+Pada artikel ini, Nginx berlajan diatas OS yang berarti Nginx berjalan diluar container. Nginx berfungsi sebagai Reverse Proxy yang akan mengarahkan kepada hostname yang nantinya dituju yaitu aplikasi Laravel
+
+Masuk kedalam direktori `/etc/nginx/sites-available` lalu buat file konfigurasi .conf untuk memanggil aplikasi yang dijalankan didalan docker yang tadi kita buat
+
+```bash
+server {
+    listen 80;
+    index index.php index.html;
+    error_log  /var/log/nginx/laravel-error.log;
+    access_log /var/log/nginx/laravel-access.log;
+    root /var/www/apps-demo/public;
+
+    location ~ \.php$ {
+        try_files $uri =404;
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        fastcgi_pass localhost:9000;
+        fastcgi_index index.php;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param PATH_INFO $fastcgi_path_info;
+    }
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+        gzip_static on;
+    }
+}
+```
+
+Setelah disimpan, kita akan membuat symlink untuk mengaktifkan file konfigurasi .conf tadi yang kita buat
+
+```bash
+ln -s /etc/nginx/sites-available/laravel.conf /etc/nginx/sites-enabled/laravel.conf
+```
+
+Lalu restart service nginx
+
+```bash
+systemctl restart nginx
+```
+
+Buka http://[IP-ADDRESS] pada browser
+
+**MySQL**
+MySQL adalah database layer. Pada tahap ini kita akan menggunakan Official Image dari DockerHub
+
+Sebelum menambahkan konfigurasi pada docker-compose.yml yang tadi kita buat, kita terlebih dahulu akan membuat Volume yang berfungsi untuk menyimpan data dari mysql
+
+```bash
+docker volume create mysqldata
+```
+
+Selanjutnya buka kembali file docker-compose.yml yang tadi kita buat dan tambahkan line berikut diatas line 'networks'
+
+```yaml title="docker-compose.yaml"
+...
+database:
+    image: mysql:8.0
+    container_name: mysql-database
+    hostname: database
+    restart: always
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8 --collation-server=utf8_general_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: admin
+      MYSQL_USER: user
+      MYSQL_PASSWORD: user
+      MYSQL_ROOT_HOST: '%'
+    volumes:
+      - mysqldata:/var/lib/mysql
+    tty: true
+    ports:
+      - 3306:3306
+    networks:
+      net1:
+        ipv4_address: 10.10.0.2
+
+volumes:
+  mysqldata:
+...
+```
+
+**Breakdown**
+- `image`: menentukan gambar yang akan digunakan untuk membuat container.
+- `container_name`: menentukan nama untuk container yang akan dibuat.
+- `hostname`: menentukan hostname untuk container.
+- `restart`: menentukan kebijakan restart pada container, pada kasus ini selalu di-restart.
+- `command`: menentukan perintah yang akan dijalankan saat container dimulai. Pada kasus ini, digunakan opsi untuk mengkonfigurasi plugin autentikasi dan pengkodean karakter yang digunakan oleh MySQL.
+- `environment`: menentukan variabel lingkungan yang akan digunakan oleh container, dalam kasus ini menentukan beberapa variabel yang dibutuhkan oleh MySQL seperti root password, username, dan password.
+- `volumes`: menentukan volume yang akan digunakan oleh container, dalam hal ini digunakan volume mysqldata yang terhubung ke direktori /var/lib/mysql pada container.
+- `tty`: menentukan apakah container perlu mengalokasikan terminal TTY.
+- `ports`: menentukan port yang akan di-ekspos oleh container. Pada kasus ini, port 3306 pada container akan diarahkan ke port 3306 pada host.
+- `networks`: menentukan jaringan yang akan digunakan oleh container.
+
+Sedangkan layanan volumes pada file docker-compose tersebut mendefinisikan volume mysqldata yang akan digunakan oleh container database, dimana volume tersebut akan terhubung ke direktori `/var/lib/mysql` pada container. Volume tersebut nantinya dapat digunakan untuk menyimpan data dari database yang berjalan pada container tersebut, sehingga data tidak akan hilang ketika container dihapus atau di-restart.
+
+Lalu jalankan kembali file docker-compose
+
+```bash
+docker-compose up -d
+```
+
+**phpMyAdmin**
+phpMyAdmin adalah sebuah aplikasi web open source yang memungkinkan pengguna untuk mengelola database MySQL dengan antarmuka grafis. Dengan phpMyAdmin, pengguna dapat membuat, mengedit, menghapus database, tabel, dan field pada database MySQL dengan mudah dan intuitif.
+
+Buka kembali file docker-compose.yml dan tambahkan konfigurasi berikut diatas line networks
+
+```yaml title="docker-compose.yaml"
+...
+  phpmyadmin:
+    image: phpmyadmin
+    container_name: phpmyadmin
+    hostname: phpmyadmin
+    depends_on:
+      - database
+    restart: always
+    ports:
+      - 8090:80
+    environment:
+      PMA_HOST: database
+      MYSQL_ROOT_PASSWORD: admin
+    networks:
+      net1:
+        ipv4_address: 10.10.0.3
+...
+```
+
+**Breakdown**
+- `image`: phpmyadmin - menggunakan image phpMyAdmin yang tersedia di Docker Hub
+- `container_name`: phpmyadmin - memberikan nama container phpMyAdmin
+- `hostname`: phpmyadmin - memberikan hostname pada container phpMyAdmin
+- `depends_on`: database - menjadikan service database sebagai dependensi untuk service phpMyAdmin, yang berarti container phpMyAdmin hanya akan dijalankan setelah container database sudah berjalan.
+- `restart`: always - mengatur agar container phpMyAdmin selalu di-restart apabila terhenti
+- `ports`: 8090:80 - mengarahkan port 8090 pada host ke port 80 pada container phpMyAdmin
+- `environment`: PMA_HOST: database MYSQL_ROOT_PASSWORD: admin - mengatur variabel lingkungan untuk phpMyAdmin. PMA_HOST mengatur host MySQL, sementara MYSQL_ROOT_PASSWORD mengatur password root MySQL.
+- `networks`: net1: ipv4_address: 10.10.0.3 - menetapkan container phpMyAdmin untuk bergabung ke dalam jaringan dengan nama net1 dan memberikan alamat IP statis yaitu 10.10.0.3.
+
+Lalu jalankan kembali file docker-compose
+
+```bash
+docker-compose up -d
+```
+
+Setelah itu buka http://[IP-ADDRESS]:8090 pada browser
+
+**What your docker-compose.yml should look like**
+
+```yaml title="docker-compose.yaml"
+services:
+  laravel:
+    image: php:8.1-fpm
+    container_name: laravel-demo
+    hostname: laravel-demo
+    restart: always
+    build:
+        context: .
+        dockerfile: Dockerfile
+    volumes:
+      - /var/www/apps-demo:/var/www/apps-demo
+      - ./config/apps/php.ini:/usr/local/etc/php/php.ini
+      - ./config/apps/conf.d:/usr/local/etc/php/conf.d
+      - ./config/apps/conf.d/zz-docker.conf:/usr/local/etc/php-fpm.d/zz-docker.conf
+    entrypoint: ["php-fpm"]
+    tty: true
+    ports:
+      - 9000:9000
+    networks:
+      net1:
+        ipv4_address: 10.10.0.10
+
+  database:
+    image: mysql:8.0
+    container_name: mysql-database
+    hostname: database
+    restart: always
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8 --collation-server=utf8_general_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: admin
+      MYSQL_USER: user
+      MYSQL_PASSWORD: user
+      MYSQL_ROOT_HOST: '%'
+    volumes:
+      - mysqldata:/var/lib/mysql
+    tty: true
+    ports:
+      - 3306:3306
+    networks:
+      net1:
+        ipv4_address: 10.10.0.2
+
+  phpmyadmin:
+    image: phpmyadmin
+    container_name: phpmyadmin
+    hostname: phpmyadmin
+    depends_on:
+      - database
+    restart: always
+    ports:
+      - 8090:80
+    environment:
+      PMA_HOST: database
+      MYSQL_ROOT_PASSWORD: admin
+    networks:
+      net1:
+        ipv4_address: 10.10.0.3
+        
+volumes:
+  mysqldata:
+
+networks:
+  net1:
+    name: Laravel-net
+    driver: bridge
+    ipam:
+       config:
+         - subnet: 10.10.0.0/24
+           gateway: 10.10.0.254
+```
+
+**And what your directory should look look like**
+<FileTree>
+- Dockerfile
+- docker-compose.yaml
+- config/
+  - apps/
+    - apps/
+    - conf.d/
+      - docker-php-ext-bcmath.ini
+      - docker-php-ext-gd.ini
+      - docker-php-ext-mysqli.ini
+      - docker-php-ext-pdo_mysql.ini
+      - docker-php-ext-zip.ini
+      - www.conf
+      - zz-docker.conf
+    - php.ini
+</FileTree>
