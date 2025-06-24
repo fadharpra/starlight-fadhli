@@ -1,0 +1,135 @@
+---
+title: Cara menjalankan File Aplikasi Golang pada Docker Container
+author: "fadharpra"
+date: 2023-04-18 13:06:00
+cover:
+  alt: Docker and Go logo.
+  image: ../../../assets/blog-cover/docker-golang.jpg
+excerpt: Pada artikel ini akan menjelaskan bagaimana cara menjalankan sebuah file aplikasi yang sudah di-build sebelumnya dengan Golang kemudian menjalankannya didalam Docker Container.
+tags:
+  - Docker
+  - Docker Compose
+  - Containerization
+  - Golang
+---
+import { FileTree } from '@astrojs/starlight/components';
+import { Aside } from '@astrojs/starlight/components';
+
+Pada artikel ini akan menjelaskan bagaimana cara menjalankan sebuah file aplikasi yang sudah di-build sebelumnya dengan Golang kemudian menjalankannya didalam Docker Container.
+
+### Step 1 — Membuat file docker-compose.yml
+
+> _Docker Compose adalah alat yang digunakan untuk menjalankan dan mengelola aplikasi yang terdiri dari beberapa container Docker. Dengan menggunakan Docker Compose, Anda dapat mengonfigurasi dan menjalankan beberapa container dalam satu lingkungan yang sama, mempermudah pengelolaan aplikasi secara keseluruhan._
+
+<Aside type="caution">
+Docker Compose versi terbaru tidak lagi memerlukan deklarasi `version`. Namun, jika Anda menggunakan Docker Compose versi lama (sebelum 2.x), tetap sertakan `version: '3.9'` untuk kompatibilitas.
+</Aside>
+
+```yaml title="docker-compose.yaml"
+services:
+  apps:
+    container_name: go-prod
+    hostname: go-prod
+    build:
+      dockerfile: Dockerfile
+      context: .
+    tty: true
+    ports:
+      - 9098:9098
+    networks:
+      net2:
+        ipv4_address: 11.11.0.100
+
+networks:
+  net2:
+    name: Golang-net
+    driver: bridge
+    ipam:
+       config:
+         - subnet: 11.11.0.0/24
+           gateway: 11.11.0.254
+```
+
+**Breakdown**
+
+- `services:` merupakan bagian dari file konfigurasi yang mendefinisikan layanan apa saja yang akan dijalankan dalam Docker container.
+- `apps:` adalah nama dari layanan yang didefinisikan, dan selanjutnya diikuti dengan konfigurasi dari layanan tersebut.
+- `container_name:` go-prod adalah nama yang diberikan pada container yang akan dijalankan.
+- `hostname:` go-prod adalah nama host yang akan diatur pada container.
+- `build:` menunjukkan bahwa layanan ini akan dibangun dari Dockerfile. Konfigurasi Dockerfile yang akan digunakan untuk membangun layanan tersebut didefinisikan pada bagian dockerfile: dan context:.
+- `tty:` true menunjukkan bahwa container akan dijalankan dengan terminal (TTY) sehingga dapat menerima input dari pengguna.
+- `ports:` menentukan port yang akan dibuka pada host untuk menghubungkan ke container. Pada kasus ini, port 9098 akan dibuka pada host dan diarahkan ke port 9098 pada container.
+- `networks:` mendefinisikan jaringan yang digunakan oleh layanan.
+- `net2:` adalah nama jaringan yang didefinisikan, dan selanjutnya diikuti dengan konfigurasi jaringan tersebut.
+- `ipv4_address:` 11.11.0.100 menentukan alamat IP yang akan diberikan pada container untuk digunakan dalam jaringan. Pada kasus ini, alamat IP 11.11.0.100 akan diberikan pada container.
+- `ipam:` menentukan konfigurasi pengaturan alamat IP pada jaringan. Pada kasus ini, subnet 11.11.0.0/24 dan gateway 11.11.0.254 diberikan pada jaringan net2.
+
+### Step 2 — Membuat Dockerfile
+
+Berikut ini adalah contoh dar Dockerfile yang akan digunakan oleh docker-compose.yml
+
+```bash
+# Use an official Golang runtime as a parent image
+FROM golang:1.16.3-alpine3.13
+
+# Set the working directory to /app
+WORKDIR /app
+
+# Copy the pre-built binary into the container at /app
+COPY ./apps/myApps /app/myApps
+# Set the environment variable for the Go app
+ENV PORT=8080
+
+# Update the permissions of the executable
+RUN chmod +x myApps
+
+# Expose port 8080 to the outside world
+EXPOSE 8080
+
+# Run the executable
+CMD ["./myApps"]
+```
+
+**Breakdown**
+
+- `FROM golang:1.16.3-alpine.3.13:` Ini mengacu pada image Docker yang digunakan sebagai basis untuk Dockerfile. Dalam hal ini, image yang digunakan adalah golang:1.16.3-alpine3.13 yang merupakan image Golang resmi.
+- `WORKDIR /app:` Ini adalah direktori kerja yang digunakan dalam container.
+- `COPY ./apps/myApps /app/myApps:` Ini menyalin file executable dari host ke direktori kerja di dalam container. Dalam hal ini, file executable yang disalin adalah /apps/myApps di host dan ditempatkan di direktori /app/myApps dalam container.
+- `ENV PORT=8080:` Ini menetapkan variabel lingkungan dengan nama PORT dan nilainya 8080.
+- `RUN chmod +x myApps:` Ini mengubah izin file executable di dalam container menjadi executable.
+- `EXPOSE 8080:` Ini mengekspos port 8080 dari container ke host.
+- `CMD ["./myApps"]:` Ini adalah perintah yang akan dijalankan ketika container dimulai. Dalam hal ini, itu akan menjalankan file executable myApps yang telah disalin ke direktori kerja di dalam container.
+
+### Step 3 — Persiapan pra-Build Golang
+
+Setelah Step 1 dan Step 2 selesai, pada step ini kita akan melakukan transfer file antara file dari lokal komputer ke server Docker, anggap saja nama file aplikasi pra-Build kita adalah **myApps**. Pada tahap transfer file bisa dengan cara menggunakan aplikasi sepert; FileZilla, WinSCP, dsb. Atau bisa dengan cara menggunakan command SCP.
+
+Setelah File pra-Build Golang sudah di transfer/copy ke server selanjutnya adalah masukan file tersebut kedalam direktori yang sebelumnya dijelaskan pada Dockerfile.
+
+Nantinya struktur direktori akan seperti dibawah ini:
+
+<FileTree>
+- golang
+  - Dockerfile
+  - docker-compose.yaml
+  - apps
+    - myApps
+</FileTree>
+
+Setelah semuanya sudah sesuai maka tahap selanjutnya adalah melakukan Build container dengan cara
+
+```bash
+docker-compose build
+```
+
+Jika proses build telah selesai, selanjutnya jalankan Docker Container
+
+```bash
+docker-compose up -d
+```
+
+Terakhir periksa kembali status container apakah container sudah berjalan atau belum
+
+```bash
+docker ps -a
+```
