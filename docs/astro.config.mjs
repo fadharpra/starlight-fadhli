@@ -5,9 +5,6 @@ import starlightBlog from 'starlight-blog'
 
 export default defineConfig({
   integrations: [starlight({
-    components: {
-      Head: './src/layouts/CustomHead.astro'
-    },
     description: 'Selamat datang di blog pribadi gua ✌️',
     pagination: false,
     locales: {
@@ -38,9 +35,10 @@ export default defineConfig({
       { href: 'https://cloud.umami.is/share/HOsxHBERERw4R2So/fadharpra.id', icon: 'seti:default', label: 'umami.is' },
     ],
     title: 'fadharpra blog',
+
   }),],
   image: {
     domains: ['fadharpra.id'],
   },
-  site: 'https://docs.fadharpra.id',
+  site: 'https://blog.fadharpra.id',
 })
