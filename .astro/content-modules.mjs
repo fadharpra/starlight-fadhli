@@ -1,0 +1,12 @@
+
+export default new Map([
+["src/content/docs/getting-started.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fgetting-started.mdx&astroContentModuleFlag=true")],
+["src/content/docs/index.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Findex.mdx&astroContentModuleFlag=true")],
+["src/content/docs/blog/aws-terraform-lockfile.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fblog%2Faws-terraform-lockfile.mdx&astroContentModuleFlag=true")],
+["src/content/docs/blog/lab-vertex-ai-workbench-final-id.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fblog%2Flab-vertex-ai-workbench-final-id.mdx&astroContentModuleFlag=true")],
+["src/content/docs/blog/kenapa-bikin-blog.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fblog%2Fkenapa-bikin-blog.mdx&astroContentModuleFlag=true")],
+["src/content/docs/resources/showcase.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fresources%2Fshowcase.mdx&astroContentModuleFlag=true")],
+["src/content/docs/resources/starlight.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fresources%2Fstarlight.mdx&astroContentModuleFlag=true")],
+["src/content/docs/blog/Monitoring-Linux-Server-dengan-menggunakan-Prometheus-Node-Exporter-dan-Grafana.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fblog%2FMonitoring-Linux-Server-dengan-menggunakan-Prometheus-Node-Exporter-dan-Grafana.mdx&astroContentModuleFlag=true")],
+["src/content/docs/blog/Installasi-Laravel-10-php8.1-MySQL-phpMyAdmin-Nginx-Reverse-Proxy.mdx", () => import("astro:content-layer-deferred-module?astro%3Acontent-layer-deferred-module=&fileName=src%2Fcontent%2Fdocs%2Fblog%2FInstallasi-Laravel-10-php8.1-MySQL-phpMyAdmin-Nginx-Reverse-Proxy.mdx&astroContentModuleFlag=true")]]);
+		

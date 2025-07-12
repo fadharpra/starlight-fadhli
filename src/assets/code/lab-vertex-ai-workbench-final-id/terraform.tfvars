@@ -1,0 +1,5 @@
+project_id                = "project-id-kalian"
+region                    = "asia-southeast2"
+zone                      = "asia-southeast2-a"
+service_account_key_path = ".env/service_account_key.json"
+user_email                = "kalian@example.com"

@@ -1,0 +1,106 @@
+---
+title: "Menerapkan Terraform State di AWS Tanpa Drama DynamoDB"
+author: "fadharpra"
+excerpt: "Pengalaman gua beresin struktur Terraform biar gak chaos di tim, pake S3 backend dan locking native."
+date: 2025-05-19
+tags: ["Terraform", "AWS", "DevOps", "Infra"]
+---
+import { Aside } from '@astrojs/starlight/components';
+import { FileTree } from '@astrojs/starlight/components';
+import { Code } from '@astrojs/starlight/components';
+
+> Kalau pernah ngerasain `terraform apply` rame-rame bareng 2-3 orang sekaligus, tapi gak ada remote state... selamat! Kamu udah unlock salah satu mode hardcore di dunia DevOps 😂
+
+## 🎯 Latar Belakang
+
+Di kantor lama, gua nemuin kasus yang (kayaknya) umum banget di banyak tim kecil: semua orang pegang Terraform, semua pake state lokal, dan yang paling krusial: **gak ada yang apply bareng... kecuali apply tanpa ngomong-ngomong.**
+
+Jadi, gua putusin buat ngerapiin sedikit. Target:
+
+- Pisahin state masing-masing project ke satu backend rapi
+- Simpen state di S3
+- **Tanpa** pake DynamoDB (karena mager setupnya, dan ternyata udah gak perlu lagi)
+
+## 🧱 Struktur Proyek
+
+<FileTree>
+- terraform-aws-project/
+  - providers.tf
+  - main.tf
+  - variables.tf
+  - backend-config.hcl
+</FileTree>
+
+## ⚙️ Konfigurasi Backend S3 dengan `use_lockfile`
+<Aside type="caution">
+Pastiin bucket `fadharpra-terraform-state-bucket` (atau bucket kalian sendiri) udah dibuat terlebih dulu, karena file `key` seperti `lockfile-test/terraform.tfstate` akan disimpan di dalam bucket tersebut dan dibaca saat Terraform apply.
+</Aside>
+Di setiap project (biasanya di providers.tf), tambahin:
+
+```hcl
+terraform {
+  backend "s3" {
+    bucket = "fadharpra-terraform-state-bucket"
+    region = "ap-southeast-1"
+    key = "lockfile-test/terraform.tfstate"
+    use_lockfile = true
+ }
+}
+```
+
+Atau bisa dipisah filenya, tinggal buat file baru namanya `backend-config.hcl`:
+
+```hcl
+bucket         = "fadharpra-terraform-state-bucket"
+key            = "production/website.tfstate"
+region         = "ap-southeast-1"
+use_lockfile   = true
+encrypt        = true
+```
+
+> Yup, sejak Terraform 1.7+, kita bisa locking langsung di S3 — tanpa DynamoDB. Terraform otomatis bikin file `.lock` di bucket selama `apply` berlangsung.
+
+## 🚀 Langkah Setup
+
+```bash
+terraform init -backend-config=../backend-config.hcl
+terraform plan
+terraform apply
+```
+
+Kalau ada orang lain yang apply barengan:
+
+```
+│ Error: Error acquiring the state lock
+│ 
+│ Error message: resource temporarily unavailable
+│ Lock Info:
+│   ID:        6c4d7907-ccb1-15c3-2e68-80cc0459f2f4
+│   Path:      terraform.tfstate
+│   Operation: OperationTypeApply
+│   Who:       fadhliari@MacBook-Air-Fadhli.local
+│   Version:   1.11.4
+│   Created:   2025-05-19 06:36:42.430544 +0000 UTC
+│   Info:
+│ 
+│ ...
+```
+
+🎉 Artinya locking jalan.
+
+## 🧠 Kenapa Ini Penting?
+
+Karena `terraform.tfstate` itu **bukan file biasa**. Dia nyimpen semua "realita" dari resource yang pernah dibuat. Kalau dua orang apply bareng, walaupun resource-nya beda, bisa kacau karena:
+
+- State gak tau resource baru dari orang lain
+- Bisa kehapus, diubah, atau duplicate
+
+> Biar gak ada alasan "eh kok VM-nya ilang ya?"
+
+## 💬 Penutup
+
+Beresin struktur Terraform itu bukan kerja sekali. Tapi dengan langkah kecil kayak ini — pake S3, aktifin `use_lockfile`, dan pisahin per project — udah cukup buat ngehindarin 90% drama yang biasanya terjadi di tim kecil.
+
+Kalau kalian punya cerita chaos pas `terraform apply`, drop di komentar atau connect bareng aja. Selalu seru ngobrolin kasus DevOps gini 😄
+
+---
