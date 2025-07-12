@@ -1,0 +1,8 @@
+.eslintcache
+eslint.config.mjs
+playwright.config.ts
+src
+test-results
+tests
+vitest.config.ts
+vitest.workspace.ts
