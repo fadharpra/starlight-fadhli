@@ -34,14 +34,11 @@ export default defineConfig({
       { href: 'https://github.com/fadharpra/', icon: 'github', label: 'GitHub' },
       { href: 'https://cloud.umami.is/share/HOsxHBERERw4R2So/fadharpra.id', icon: 'seti:default', label: 'umami.is' },
     ],
-    title: 'fadharpra blog',
+    title: '',
     logo: {
       src: './public/logo-fadharpra-blog.png',
       alt: 'fadharpra logo',
   },
   }),],
-  image: {
-    domains: ['fadharpra.id'],
-  },
   site: 'https://blog.fadharpra.id',
 })
