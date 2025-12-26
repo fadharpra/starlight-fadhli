@@ -1,0 +1,357 @@
+---
+title: "Lab: Deploy Web Infrastructure di Google Cloud pakai Terraform (Cloud Run)"
+author: "fadharpra"
+excerpt: "Lanjutan dari DevFest: bedah struktur repo Terraform, jelasin providers/variables/main, lalu deploy Cloud Run sampai publish URL tanpa auth."
+date: 2025-12-24
+tags: ["Terraform", "GCP", "Cloud Run", "DevFest", "GDG Bogor", "DevOps", "Infrastructure as Code"]
+---
+
+import { FileTree, Steps, Tabs, TabItem, Code } from "@astrojs/starlight/components";
+
+// Kalau kalian simpan file TF ini sebagai asset biar bisa di-render pakai <Code />,
+// taro file-nya di /src/assets/code/terraform-devfest-dev-demo/ lalu uncomment import di bawah.
+// import providersTf from "/src/assets/code/terraform-devfest-dev-demo/providers.tf?raw";
+// import variablesTf from "/src/assets/code/terraform-devfest-dev-demo/variables.tf?raw";
+// import mainTf from "/src/assets/code/terraform-devfest-dev-demo/main.tf?raw";
+
+>  Ini lanjutan dari [Part 1] (https://blog.fadharpra.id/blog/installing-terraform/). Di sini kita fokus ke yang “seru”: **bedah Terraform code** sampai beneran **deploy aplikasi ke Cloud Run** dan bisa diakses publik.
+
+## Konteks Singkat (DevFest Mode)
+
+Di talk **“From Code to Automated Web Infrastructure on Google Cloud with Terraform”**, goal gua simpel:
+- dari code Terraform
+- jadi web service yang beneran live di Google Cloud
+
+Infra yang kita deploy di Part 2 ini:
+- **Cloud Run (fully managed)**
+- Service public (no auth) via IAM binding **roles/run.invoker** ke **allUsers**
+
+> Cocok buat demo panggung: cepat, repeatable, dan nggak ribet VM.
+
+---
+
+## Struktur Directory
+
+Struktur repo kalian kurang lebih begini (sesuai yang kalian tunjukin):
+
+<FileTree>
+- **Terraform-Devfest-Dev-Demo/**
+  - service-account-gcp-kalian.json
+  - providers.tf
+  - variables.tf
+  - main.tf
+</FileTree>
+
+📝 Catatan:
+- File `*.json` itu service account key (credential). Untuk repo publik, ini **jangan di-commit** ya. (Nanti gua kasih opsi yang lebih aman juga.)
+
+---
+
+## Prasyarat
+
+<Steps>
+  1. Sudah install Terraform (Part 1)
+  2. Sudah punya GCP project + billing aktif
+  3. Service account sudah dibuat dan punya permission minimal untuk Cloud Run
+  4. API yang dibutuhkan sudah aktif
+</Steps>
+
+### API yang perlu di-enable
+
+Minimal ini (paling aman buat Cloud Run v2):
+```txt
+run.googleapis.com
+iam.googleapis.com
+cloudresourcemanager.googleapis.com
+```
+
+Kalau kalian mau cepat via CLI (opsional):
+```bash
+gcloud services enable run.googleapis.com iam.googleapis.com cloudresourcemanager.googleapis.com
+```
+
+---
+
+##  Bedah File Terraform-nya
+
+### 1) `providers.tf` — Provider & Auth
+
+Intinya:
+- Terraform butuh provider Google
+- Provider pakai **service account key** (file JSON)
+
+```hcl
+terraform {
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = "7.12.0"
+    }
+  }
+}
+
+provider "google" {
+  credentials = file(var.gcp_svc_key)
+  project     = var.gcp_project
+  region      = var.gcp_region
+}
+```
+
+**Yang perlu kalian pahamin:**
+- `credentials = file(var.gcp_svc_key)` artinya Terraform baca service account key dari file.
+- `project` dan `region` jadi default scope, jadi resource di `main.tf` tinggal refer ke variable.
+
+Selain itu, kalian juga bisa cek providers apa aja yang di support sama Terraformnya, kalian bisa cek [di sini](https://registry.terraform.io/browse/providers)
+> Kalau kalian udah pakai `gcloud auth application-default login` (ADC), kalian bisa hilangin `credentials = ...` dan lebih aman. Nanti gua bahas di bagian “Hardening”.
+
+---
+
+### 2) `variables.tf` — Biar Demo Fleksibel
+
+Ini versi kalian (gua pertahanin, karena buat workshop enak: tinggal edit default):
+
+```hcl
+variable "gcp_svc_key" {
+  description = "Path to the Google Cloud service account key file"
+  default     = "service-account-google-kalian.json"
+}
+
+variable "gcp_project" {
+  description = "The Google Cloud project ID"
+  default     = "service-account-gcp-kalian"
+}
+
+variable "gcp_region" {
+  description = "The Google Cloud region"
+  default     = "asia-southeast2"
+}
+
+variable "cloud_run_service_name" {
+  description = "Name of Cloud Run service"
+  type        = string
+  default     = "devfest-demo"
+}
+
+variable "container_image" {
+  description = "Container image URL (Docker Hub / Artifact Registry)"
+  type        = string
+
+  # Kalian bisa sesuain image docker apa yang mau dipakai, bisa kalian buat sendiri atau pakai image dibawah sebagai image yang udah jadi
+  default     = "docker.io/fadharpra/devfest-demo:1.6" 
+}
+```
+
+**Yang penting:**
+- `container_image` itu point ke image yang udah ready.
+- Jadi di demo, kalian nggak kebuang waktu build/push image (kecuali memang mau demo build).
+
+---
+
+### 3) `main.tf` — Resource Cloud Run + Public Access
+
+Di sini ada 2 resource utama:
+
+1. `google_cloud_run_v2_service` → bikin service Cloud Run
+2. IAM binding invoker → bikin service bisa diakses publik
+
+#### (A) Cloud Run v2 service
+
+```hcl
+resource "google_cloud_run_v2_service" "app" {
+  name     = var.cloud_run_service_name
+  location = var.gcp_region
+  deletion_protection = false
+  ingress  = "INGRESS_TRAFFIC_ALL"
+
+  scaling {
+    max_instance_count = 3
+  }
+
+  template {
+    containers {
+      image = var.container_image
+      resources {
+        limits = {
+          cpu    = "1"
+          memory = "512Mi"
+        }
+      }
+    }
+  }
+
+  traffic {
+    type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
+    percent = 100
+  }
+}
+```
+
+**Penjelasan cepat (yang kepake buat workshop):**
+- `ingress = "INGRESS_TRAFFIC_ALL"` → service bisa diakses dari internet (kalau IAM-nya ngizinin).
+- `scaling.max_instance_count = 3` → limit biar cost nggak liar saat demo.
+- `resources.limits` → request/limit container di Cloud Run.
+- `traffic` → 100% ke revision terbaru (simple buat demo).
+
+#### (B) Buka akses public (no auth)
+
+Versi kalian:
+
+```hcl
+resource "google_cloud_run_service_iam_binding" "app_noauth" {
+  location = google_cloud_run_v2_service.app.location
+  service  = google_cloud_run_v2_service.app.name
+  role     = "roles/run.invoker"
+
+  members = [
+    "allUsers",
+  ]
+}
+```
+
+> Ini tujuannya biar URL Cloud Run bisa dibuka tanpa login.
+
+⚠️ **Catatan penting (biar nggak kejebak error):**
+- Resource IAM di atas itu style “Cloud Run v1” (`google_cloud_run_service_iam_binding`).
+- Sedangkan service kalian pakai “Cloud Run v2” (`google_cloud_run_v2_service`).
+
+Di beberapa kondisi, ini bisa kepentok permission / mismatch API.
+
+Kalau kalian kena error IAM (contoh classic: `run.services.setIamPolicy denied`), solusi paling aman adalah ganti ke resource IAM v2:
+
+```hcl
+resource "google_cloud_run_v2_service_iam_member" "app_noauth" {
+  location = google_cloud_run_v2_service.app.location
+  name     = google_cloud_run_v2_service.app.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
+```
+
+> Di Part 2 ini, gua sengaja tulis dua versi supaya kalian bisa pilih yang paling stabil di environment kalian.
+
+---
+
+## Deploy Step-by-step 🚀
+
+Masuk ke folder repo Terraform kalian:
+
+```bash
+cd Terraform-Devfest-Dev-Demo
+```
+
+### 1) Init
+
+```bash
+terraform init
+```
+
+### 2) Plan (wajib buat workshop biar peserta “ngeliat” apa yang akan dibuat)
+
+```bash
+terraform plan
+```
+
+### 3) Apply
+
+```bash
+terraform apply
+```
+
+Kalau sukses, Cloud Run akan terbuat.
+
+---
+
+## Dapetin URL Cloud Run
+
+Karena di code kalian belum ada `output`, cara paling gampang:
+
+```bash
+gcloud run services describe devfest-demo   --region asia-southeast2   --format="value(status.url)"
+```
+
+Kalau kalian mau rapi di Terraform (recommended), tambahin `outputs.tf`:
+
+```hcl
+output "cloud_run_url" {
+  value = google_cloud_run_v2_service.app.uri
+}
+```
+
+Terus apply lagi:
+```bash
+terraform apply
+```
+
+Nanti URL keluar di output.
+
+---
+
+## Troubleshooting Cepat (yang biasanya kejadian di workshop)
+
+### A) `terraform` bisa jalan, tapi apply error 403 setIamPolicy
+
+Biasanya permission service account kurang.
+
+Minimal role yang sering kepake:
+```txt
+Cloud Run Admin
+Service Account User (kalau deploy pakai runtime SA tertentu)
+Project IAM Admin / Security Admin (kalau mau ngatur IAM policy) — ini tinggi, pakai seperlunya
+```
+
+Untuk kasus public access (allUsers), seringnya butuh ability untuk set IAM policy di Cloud Run service.
+
+### B) API belum aktif
+
+Kalau error yang mengarah ke “API has not been used” → enable API dulu (lihat section prasyarat).
+
+### C) Image pull error
+
+Kalau image dari private registry atau private Artifact Registry, Cloud Run butuh permission pull. Untuk demo, image public Docker Hub biasanya paling aman.
+
+---
+
+## Hardening (opsional tapi penting)
+
+Kalau repo kalian bakal di-share / dipublish:
+
+<Tabs>
+  <TabItem label="Jangan commit SA key">
+    - Pindahin `*.json` ke `.gitignore`
+    - Isi path key lewat env var atau tfvars lokal
+    - Contoh `.gitignore`:
+      ```txt
+      *.json
+      *.tfstate
+      *.tfstate.*
+      .terraform/
+      ```
+  </TabItem>
+  <TabItem label="Pakai ADC (lebih aman)">
+    - Login:
+      ```bash
+      gcloud auth application-default login
+      ```
+    - Hapus `credentials = file(...)` dari provider
+    - Terraform akan pakai kredensial ADC otomatis
+  </TabItem>
+</Tabs>
+
+---
+
+## ✅ Kesimpulan
+
+Dengan struktur yang simpel (providers + variables + main), kalian udah bisa:
+- deploy Cloud Run dari Terraform
+- kontrol scaling & resource limit
+- publish service biar bisa diakses publik
+
+Ini tipe demo yang menurut gua paling cocok buat event: **langsung kelihatan hasilnya.**
+
+---
+
+> 🔜 Next (kalau kalian mau): kita bisa bikin versi yang lebih “production-ish”:
+> - tfvars terpisah per env (dev/uat/prod)
+> - enable API via Terraform
+> - Artifact Registry + Cloud Build pipeline
+> - domain mapping + HTTPS + Cloud Load Balancer (kalau diperlukan)
