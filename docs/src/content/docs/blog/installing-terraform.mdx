@@ -1,0 +1,190 @@
+---
+title: "From Code to Automated Web Infrastructure on Google Cloud with Terraform"
+author: "fadharpra"
+excerpt: "Catatan dari balik panggung GDG Bogor DevFest 2025: kenapa install Terraform lintas OS bisa makan waktu workshop, dan gimana cara menghindarinya."
+date: 2025-11-01
+tags: ["Terraform", "GCP", "DevFest", "GDG Bogor", "DevOps", "Infrastructure"]
+---
+
+import { Steps, Code } from "@astrojs/starlight/components";
+
+> 🚀 Artikel ini lahir dari pengalaman nyata jadi speaker di **GDG Bogor DevFest 2025**, ketika sesi Terraform hampir kehabisan waktu hanya karena urusan **install tool**.
+
+## 🎤 Cerita Singkat dari DevFest 2025
+
+Di GDG Bogor DevFest 2025, gua bawain materi berjudul:
+
+> **“From Code to Automated Web Infrastructure on Google Cloud with Terraform”**
+
+Targetnya simpel:
+- peserta paham konsep Infrastructure as Code
+- lanjut hands-on provisioning web infrastructure di GCP
+
+Tapi realita di lapangan:
+- peserta pakai OS yang beda-beda (Windows, macOS, Linux)
+- gua sendiri pakai macOS
+- dan banyak yang belum pernah install Terraform sama sekali
+
+Masalah mulai muncul:
+- Terraform belum ke-install
+- Command `terraform` nggak kebaca
+- PATH issue (terutama di Windows)
+- PowerShell, CMD, dan Git Bash bikin makin ribet
+
+Akhirnya:
+> ⏱️ **30–40 menit sesi habis cuma buat install Terraform.**
+
+Dari situ gua sadar:
+**setup tooling itu bukan hal sepele — itu single point of failure workshop.**
+
+Makanya artikel ini gua bikin sebagai **pre-workshop survival guide**.
+
+---
+
+## 🤔 Kenapa Install Terraform Harus Beres dari Awal?
+
+Terraform adalah CLI tool.  
+Kalau CLI-nya nggak jalan:
+- materi nggak bisa lanjut
+- speaker panik
+- peserta bingung
+- waktu habis percuma
+
+Solusinya satu:
+> **setup harus beres sebelum hari-H.**
+
+---
+
+## ⚙️ Cara Install Terraform (Per OS)
+
+### 🪟 Windows (Paling Krusial)
+
+**Rekomendasi: pakai Chocolatey**
+
+#### 1. Install Chocolatey (jika belum ada)
+
+Buka **PowerShell (Run as Administrator)**:
+
+```powershell
+Set-ExecutionPolicy Bypass -Scope Process -Force
+irm https://community.chocolatey.org/install.ps1 | iex
+```
+
+Restart PowerShell setelah selesai.
+
+#### 2. Install Terraform
+
+```powershell
+choco install terraform -y
+```
+
+#### 3. Verifikasi
+
+```powershell
+terraform version
+where terraform
+```
+
+⚠️ **Masalah umum di Windows**
+- Terraform sudah ter-install tapi command tidak dikenali
+- Penyebab utama: PATH belum kebaca
+- Solusi: restart PowerShell / Windows Terminal (kadang perlu reboot)
+
+---
+
+### 🍎 macOS
+
+Menggunakan Homebrew:
+
+```bash
+brew tap hashicorp/tap
+brew install hashicorp/tap/terraform
+```
+
+Verifikasi:
+
+```bash
+terraform version
+which terraform
+```
+
+---
+
+### 🐧 Linux (Ubuntu / Debian)
+
+```bash
+sudo apt update
+sudo apt install -y gnupg software-properties-common curl
+
+curl -fsSL https://apt.releases.hashicorp.com/gpg | \
+  sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+
+echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] \
+https://apt.releases.hashicorp.com $(lsb_release -cs) main" | \
+sudo tee /etc/apt/sources.list.d/hashicorp.list
+
+sudo apt update
+sudo apt install terraform
+```
+
+Verifikasi:
+
+```bash
+terraform version
+which terraform
+```
+
+---
+
+### 🐧 Linux (RHEL / Rocky / Alma)
+
+```bash
+sudo dnf install -y dnf-plugins-core
+sudo dnf config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
+sudo dnf install terraform
+```
+
+---
+
+## ✅ Checklist Wajib Sebelum Workshop
+
+<Steps>
+  1. Terraform sudah ter-install
+  2. Command `terraform version` berjalan tanpa error
+  3. PATH sudah terbaca dengan benar
+  4. Sudah pernah menjalankan `terraform init`
+</Steps>
+
+Kalau checklist ini lolos, **90% problem workshop Terraform biasanya hilang.**
+
+---
+
+## 🧠 Catatan Penting dari Speaker
+
+> 💡 **Lesson learned dari DevFest**
+
+- Jangan install tool di hari-H
+- Kirim guide install minimal H-1
+- Minta peserta test `terraform version`
+- Lebih baik potong materi daripada kehabisan waktu di setup
+
+Automation itu powerful,  
+tapi **baru terasa powerful kalau tool-nya siap dipakai.**
+
+---
+
+## 🚀 Penutup
+
+Terraform memungkinkan kita:
+- mendefinisikan infrastruktur lewat code
+- bikin environment repeatable
+- mengurangi “works on my machine” problem
+
+Tapi sebelum masuk ke bagian seru,
+> **pastikan satu hal sederhana: Terraform-nya jalan.**
+
+---
+
+> 🔜 **Part 2:**  
+> *From Code to Automated Web Infrastructure on Google Cloud with Terraform*  
+> (bedah Terraform code sampai infrastructure benar-benar ter-deploy)
