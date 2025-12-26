@@ -2,13 +2,13 @@
 title: "From Code to Automated Web Infrastructure on Google Cloud with Terraform"
 author: "fadharpra"
 excerpt: "Catatan dari balik panggung GDG Bogor DevFest 2025: kenapa install Terraform lintas OS bisa makan waktu workshop, dan gimana cara menghindarinya."
-date: 2025-11-01
+date: 2025-12-25
 tags: ["Terraform", "GCP", "DevFest", "GDG Bogor", "DevOps", "Infrastructure"]
 ---
 
 import { Steps, Code } from "@astrojs/starlight/components";
 
-> 🚀 Artikel ini lahir dari pengalaman nyata jadi speaker di **GDG Bogor DevFest 2025**, ketika sesi Terraform hampir kehabisan waktu hanya karena urusan **install tool**.
+> Artikel ini lahir dari pengalaman nyata jadi speaker di **GDG Bogor DevFest 2025**, ketika sesi Terraform hampir kehabisan waktu hanya karena urusan **install tool**.
 
 ## 🎤 Cerita Singkat dari DevFest 2025
 
@@ -32,7 +32,7 @@ Masalah mulai muncul:
 - PowerShell, CMD, dan Git Bash bikin makin ribet
 
 Akhirnya:
-> ⏱️ **30–40 menit sesi habis cuma buat install Terraform.**
+> **30–40 menit sesi habis cuma buat install Terraform.**
 
 Dari situ gua sadar:
 **setup tooling itu bukan hal sepele — itu single point of failure workshop.**
@@ -41,7 +41,7 @@ Makanya artikel ini gua bikin sebagai **pre-workshop survival guide**.
 
 ---
 
-## 🤔 Kenapa Install Terraform Harus Beres dari Awal?
+## Kenapa Install Terraform Harus Beres dari Awal?
 
 Terraform adalah CLI tool.  
 Kalau CLI-nya nggak jalan:
@@ -55,9 +55,9 @@ Solusinya satu:
 
 ---
 
-## ⚙️ Cara Install Terraform (Per OS)
+## Cara Install Terraform (Per OS)
 
-### 🪟 Windows (Paling Krusial)
+### Windows (Paling Krusial)
 
 **Rekomendasi: pakai Chocolatey**
 
@@ -92,7 +92,7 @@ where terraform
 
 ---
 
-### 🍎 macOS
+### macOS
 
 Menggunakan Homebrew:
 
@@ -110,7 +110,7 @@ which terraform
 
 ---
 
-### 🐧 Linux (Ubuntu / Debian)
+### Linux (Ubuntu / Debian)
 
 ```bash
 sudo apt update
@@ -136,7 +136,7 @@ which terraform
 
 ---
 
-### 🐧 Linux (RHEL / Rocky / Alma)
+### Linux (RHEL / Rocky / Alma)
 
 ```bash
 sudo dnf install -y dnf-plugins-core
@@ -159,7 +159,7 @@ Kalau checklist ini lolos, **90% problem workshop Terraform biasanya hilang.**
 
 ---
 
-## 🧠 Catatan Penting dari Speaker
+## Catatan Penting dari Saya Sendiri (wkwk)
 
 > 💡 **Lesson learned dari DevFest**
 
