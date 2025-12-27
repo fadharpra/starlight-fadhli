@@ -1,0 +1,144 @@
+---
+title: "Labs: Provision Vertex AI Workbench with Terraform"
+author: "fadharpra"
+excerpt: "A step-by-step guide to deploying Vertex AI Workbench on GCP using Terraform and running an ML notebook with the Iris dataset."
+date: 2025-06-10
+tags: ["Terraform", "GCP", "Vertex AI", "Machine Learning", "Workbench"]
+---
+import { FileTree, Tabs, TabItem, Steps, Code } from '@astrojs/starlight/components';
+
+import maintfCode from '/src/assets/code/lab-vertex-ai-workbench-final-id/main.tf?raw';
+import variablestfCode from '/src/assets/code/lab-vertex-ai-workbench-final-id/variables.tf?raw';
+import terraformrfvarsCode from '/src/assets/code/lab-vertex-ai-workbench-final-id/terraform.tfvars?raw';
+
+> 🚀 A concise guide to help you provision Vertex AI Workbench using Terraform and explore the Iris dataset with Python. Ideal for workshops and self-paced labs.
+
+## 🎤 A Short Story from Google I/O Extended Bogor 2025
+
+Some time ago, I was invited to be a speaker/facilitator for the ~~**Code & Create - Build with AI Workshops Session 2**~~ **Dev Connect** session at **Google I/O Extended Bogor 2025**.
+
+Coming from a **system engineering and infrastructure** background, I’ll be honest — when the topic included **AI**, my first reaction was:
+> *“Uh oh… this is way outside my comfort zone.”*
+
+I don’t come from an ML or Data Science background, and I genuinely struggled to understand many of GCP’s AI services at first.
+
+But at the same time, I still wanted to **share something relevant** from my own perspective as an infrastructure engineer — specifically around **automation and provisioning tools like Terraform**.
+
+So I treated this as a challenge:
+- Learn how to use Vertex AI Workbench
+- Provision everything from scratch
+- Package it into a **hands-on lab focused on automation**, not heavy modeling or training
+
+🧠 From that experience, I learned one important thing:  
+**AI–Infra collaboration isn’t about who knows more — it’s about enabling each other with the right tools.**
+
+ML teams need environments that are repeatable, secure, and scalable — and that’s exactly where automation tools like Terraform shine.
+
+## 📦 What You’ll Do in This Lab
+
+- Provision a JupyterLab environment using Vertex AI Workbench
+- Explore the Iris dataset using Python and pandas
+- Train and evaluate a simple ML model (RandomForest)
+
+## ⚙️ Prerequisites
+
+Before getting started, make sure:
+<Steps>
+
+1.  You have a GCP project with billing enabled
+2.  You have created a service account with the following roles:
+    ```txt
+    Vertex AI Admin
+    Compute Admin
+    IAM Service Account User
+    Service Usage Admin
+    ```
+3.  The following APIs are enabled:
+    ```txt
+    vertexai.googleapis.com
+    notebooks.googleapis.com
+    cloudresourcemanager.googleapis.com
+    ```
+</Steps>
+
+## 🧱 Project Structure
+
+<FileTree>
+- **gdg-workbench-lab/**
+  - .env
+     - service_account_key.json
+ - main.tf
+ - variables.tf
+ - terraform.tfvars
+ - explore-iris.ipynb
+ - enable-apis.sh
+ - README.md
+</FileTree>
+
+## 🛠 Step-by-Step Guide
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/fadharpra/terraform-vertex-ai-workbench.git
+cd gdg-workbench-lab
+```
+
+Inside the repository, you’ll find the main Terraform file, `main.tf`, which defines the Vertex AI Workbench resource used to deploy the JupyterLab environment.
+
+You’ll also find supporting files:
+- `variables.tf` — input variable definitions
+- `terraform.tfvars` — variable values
+- `enable-apis.sh` — script to enable required GCP APIs
+- `explore-iris.ipynb` — demo notebook for exploring the Iris dataset
+
+Here’s a snippet from `main.tf`:
+<Code code={maintfCode} lang="hcl" title="main.tf" />
+
+### 2. Add the `variables.tf` File
+
+Create a new file named `variables.tf` to declare the required variables:
+
+<Code code={variablestfCode} lang="hcl" title="variables.tf" />
+
+### 3. Edit the Variables
+
+Update `terraform.tfvars` with your own values:
+
+<Code code={terraformrfvarsCode} lang="hcl" title="terraform.tfvars" />
+
+### 4. Enable Required APIs
+
+```bash
+bash enable-apis.sh
+```
+
+### 5. Deploy the Infrastructure
+
+```bash
+terraform init
+terraform apply
+```
+
+## 📊 Notebook Exploration
+
+Once the instance is running, open JupyterLab from the Vertex AI Workbench Console, upload `explore-iris.ipynb`, and run all cells.
+
+You’ll see:
+- Dataset preview
+- Summary statistics
+- Training and evaluation of a simple ML model
+
+## 🎓 Bonus Ideas
+
+You can extend this lab by:
+- Loading datasets from BigQuery
+- Uploading and loading models from GCS
+- Connecting to Vertex AI endpoints using the Python SDK
+
+## ✅ Conclusion
+
+Vertex AI Workbench makes it easier, safer, and more repeatable to set up ML environments on GCP.  
+With Terraform, you can automate this setup and integrate it into your infrastructure workflow.
+
+Happy hacking! 🎉

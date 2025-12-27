@@ -1,0 +1,242 @@
+---
+title: "Deploy Laravel 10 Modern dengan Docker (Best Practice 2024–2025)"
+author: "fadharpra"
+date: 2025-03-30
+excerpt: "Panduan terbaru dan siap produksi untuk menjalankan Laravel 10 menggunakan Docker Compose dengan PHP-FPM 8.1+, MySQL 8, phpMyAdmin, dan Nginx — mengikuti best practice container modern."
+tags: ["Docker", "Docker Compose", "Laravel", "MySQL", "Nginx", "DevOps"]
+---
+import { Badge } from '@astrojs/starlight/components';
+import { FileTree } from '@astrojs/starlight/components';
+import { Aside } from '@astrojs/starlight/components';
+
+- <Badge text="Best Practice" variant="success" />
+
+> 🚀 Pendekatan modern dan production-friendly untuk menjalankan Laravel 10 dengan Docker di Ubuntu 22.04 / 24.04 — lebih rapi, aman, dan mudah dirawat.
+
+## 📦 Stack yang Digunakan
+
+- Laravel 10
+- PHP-FPM 8.1+
+- MySQL 8.0
+- phpMyAdmin (opsional, non-production)
+- Nginx (Reverse Proxy)
+- Docker Compose v2
+
+---
+
+## 🧠 Perbedaan Utama Dibanding Setup Lama
+
+- Tidak menggunakan static IP container
+- Database tidak diekspos ke host
+- Konfigurasi pakai `.env`
+- Persistent data pakai named volume
+- Docker Compose v2 (`docker compose`)
+- phpMyAdmin hanya aktif saat dibutuhkan
+
+---
+
+## 🐳 Step 1 — Install Docker Engine (Metode Resmi)
+
+```bash
+sudo apt update -y
+sudo apt install -y ca-certificates curl gnupg
+```
+
+```bash
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+```
+
+```bash
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+  https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+sudo apt update -y
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+```
+
+Verifikasi:
+
+```bash
+docker version
+docker compose version
+```
+
+---
+
+## 📁 Step 2 — Struktur Proyek
+
+<FileTree>
+- laravel-docker/
+  - app/                # Source code Laravel
+  - docker/
+    - nginx/
+      - default.conf
+    - php/
+      - Dockerfile
+      - php.ini
+  - docker-compose.yml
+  - .env
+</FileTree>
+
+---
+
+## 🔐 Step 3 — Konfigurasi Environment (.env)
+
+```env
+APP_NAME=Laravel
+APP_ENV=local
+APP_KEY=
+APP_DEBUG=true
+APP_URL=http://localhost
+
+DB_CONNECTION=mysql
+DB_HOST=db
+DB_PORT=3306
+DB_DATABASE=laravel
+DB_USERNAME=laravel
+DB_PASSWORD=secret
+```
+
+---
+
+## 🛠️ Step 4 — Dockerfile PHP-FPM
+
+`docker/php/Dockerfile`:
+
+```dockerfile
+FROM php:8.1-fpm
+
+RUN apt-get update && apt-get install -y \
+    git curl zip unzip libpng-dev libonig-dev libxml2-dev \
+    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
+
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+WORKDIR /var/www/html
+```
+
+---
+
+## 🧩 Step 5 — docker-compose.yml (Modern & Rapi)
+
+```yaml
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: laravel-app
+    volumes:
+      - ./app:/var/www/html
+    env_file:
+      - .env
+    depends_on:
+      - db
+
+  web:
+    image: nginx:alpine
+    container_name: nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./app:/var/www/html
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - app
+
+  db:
+    image: mysql:8.0
+    container_name: mysql
+    restart: always
+    environment:
+      MYSQL_DATABASE: laravel
+      MYSQL_USER: laravel
+      MYSQL_PASSWORD: secret
+      MYSQL_ROOT_PASSWORD: root
+    volumes:
+      - dbdata:/var/lib/mysql
+
+  phpmyadmin:
+    image: phpmyadmin
+    container_name: phpmyadmin
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: db
+    profiles:
+      - debug
+
+volumes:
+  dbdata:
+```
+
+<Aside type="tip">
+phpMyAdmin hanya dijalankan jika profile debug diaktifkan:
+<code>docker compose --profile debug up -d</code>
+</Aside>
+
+---
+
+## 🌐 Step 6 — Konfigurasi Nginx
+
+`docker/nginx/default.conf`:
+
+```nginx
+server {
+    listen 80;
+    index index.php index.html;
+    root /var/www/html/public;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        fastcgi_pass app:9000;
+        fastcgi_index index.php;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+    }
+}
+```
+
+---
+
+## 🚀 Step 7 — Jalankan Stack
+
+```bash
+docker compose up -d --build
+```
+
+Generate APP_KEY Laravel:
+
+```bash
+docker compose exec app php artisan key:generate
+```
+
+Akses aplikasi:
+
+- Laravel: http://localhost
+- phpMyAdmin (debug): http://localhost:8081
+
+---
+
+## 🧠 Catatan Production
+
+- Gunakan `.env.production`
+- Jangan jalankan phpMyAdmin di production
+- Tambahkan HTTPS (Traefik atau Nginx + Certbot)
+- Pertimbangkan container terpisah untuk queue & scheduler
+- Gunakan backup untuk volume database
+
+---
+
+## ✅ Penutup
+
+Setup ini sengaja dibuat **membosankan** — dan justru itu kelebihannya.  
+Compose file simpel, network bisa diprediksi, dan minim komponen aneh = minim drama.
+
+Kalau kamu migrasi dari setup Laravel Docker lama, struktur ini cocok dijadikan baseline ke depan.

@@ -1,0 +1,161 @@
+---
+title: "Monitoring Linux Servers with Prometheus, Node Exporter, and Grafana"
+author: "fadharpra"
+date: 2023-08-04
+excerpt: "A practical guide to setting up Linux server monitoring using Prometheus, Node Exporter, and Grafana. Ideal for building an observability stack from scratch."
+tags: ["Monitoring", "Grafana", "Prometheus", "Node Exporter", "Ubuntu"]
+---
+
+import { Badge } from '@astrojs/starlight/components';
+import { Aside } from '@astrojs/starlight/components';
+
+- <Badge text="Caution" variant="caution" />
+<Aside type="caution">
+Heads up! This article is currently being updated. Some parts may be outdated or inaccurate — please double-check before following along.
+</Aside>
+
+> 🚀 A hands-on guide to setting up a Prometheus-based monitoring stack. We’ll use two Ubuntu-based VMs: one for **Node Exporter**, and another for **Prometheus + Grafana**.
+
+## 🖥️ Architecture Overview
+
+- **VM 1 (`vms-01`, IP: `192.168.1.7`)**: Node Exporter
+- **VM 2 (`vms-02`, IP: `192.168.1.8`)**: Prometheus & Grafana
+
+## 🔧 Step 1 — Install Node Exporter
+
+Node Exporter collects hardware and OS metrics, which are then scraped by Prometheus.
+
+```bash
+sudo useradd --no-create-home --shell /bin/false node_exporter
+wget https://github.com/prometheus/node_exporter/releases/download/v1.6.1/node_exporter-1.6.1.linux-amd64.tar.gz -P /mnt
+cd /mnt
+tar -zxvf node_exporter-1.6.1.linux-amd64.tar.gz
+cp node_exporter-1.6.1.linux-amd64/node_exporter /usr/local/bin
+chown node_exporter:node_exporter /usr/local/bin/node_exporter
+```
+
+Create the systemd service:
+
+```ini
+# /etc/systemd/system/node_exporter.service
+[Unit]
+Description=Node Exporter
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=node_exporter
+Group=node_exporter
+Type=simple
+ExecStart=/usr/local/bin/node_exporter
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start the service:
+
+```bash
+systemctl daemon-reload
+systemctl start node_exporter
+systemctl enable node_exporter
+```
+
+Verify via browser: `http://192.168.1.7:9100/metrics`
+
+## 📦 Step 2 — Install Prometheus
+
+```bash
+sudo useradd --no-create-home --shell /usr/sbin/nologin prometheus
+wget https://github.com/prometheus/prometheus/releases/download/v2.46.0/prometheus-2.46.0.linux-amd64.tar.gz -P /mnt
+cd /mnt
+tar -zxvf prometheus-2.46.0.linux-amd64.tar.gz
+cp prometheus-2.46.0.linux-amd64/{prometheus,promtool} /usr/local/bin/
+chown prometheus:prometheus /usr/local/bin/prom*
+
+mkdir /etc/prometheus
+cp -r prometheus-2.46.0.linux-amd64/{consoles,console_libraries,prometheus.yml} /etc/prometheus
+chown -R prometheus:prometheus /etc/prometheus
+```
+
+Edit `/etc/prometheus/prometheus.yml`:
+
+```yaml
+scrape_configs:
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: "node_exporter"
+    static_configs:
+      - targets: ["192.168.1.7:9100"]
+```
+
+Create the Prometheus service:
+
+```ini
+# /etc/systemd/system/prometheus.service
+[Unit]
+Description=Prometheus Monitoring
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=prometheus
+Group=prometheus
+Type=simple
+ExecStart=/usr/local/bin/prometheus   --config.file /etc/prometheus/prometheus.yml   --storage.tsdb.path /etc/prometheus/data/   --web.console.templates=/etc/prometheus/consoles   --web.console.libraries=/etc/prometheus/console_libraries
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start Prometheus:
+
+```bash
+systemctl daemon-reload
+systemctl start prometheus
+systemctl enable prometheus
+```
+
+Access Prometheus UI: `http://192.168.1.8:9090`
+
+## 📈 Step 3 — Install Grafana
+
+```bash
+apt-get install -y apt-transport-https software-properties-common wget
+wget -q -O /usr/share/keyrings/grafana.key https://apt.grafana.com/gpg.key
+echo "deb [signed-by=/usr/share/keyrings/grafana.key] https://apt.grafana.com stable main" | sudo tee /etc/apt/sources.list.d/grafana.list
+apt-get update -y
+apt-get install grafana -y
+
+systemctl start grafana-server
+systemctl enable grafana-server
+```
+
+Access Grafana at `http://192.168.1.8:3000`:
+- Username: `admin`
+- Password: `admin`
+
+## 🧩 Integrate Grafana with Prometheus
+
+1. Navigate to `Connections` → `Data Sources`
+2. Select `Prometheus` → URL: `http://192.168.1.8:9090`
+3. Click `Save & Test`
+
+## 🧠 Dashboard Setup
+
+Use the community dashboard template:  
+https://grafana.com/grafana/dashboards/10180
+
+Steps:
+- Click `New` → `Import`
+- Enter Dashboard ID: `10180`
+- Select Prometheus as the data source → `Import`
+
+🎉 Done! You now have a powerful, open-source observability stack running.
+
+---
+
+> If you run into issues during setup, drop a question in the comments.  
+> Or share your own monitoring chaos stories — chances are, we’ve all been there 😄
