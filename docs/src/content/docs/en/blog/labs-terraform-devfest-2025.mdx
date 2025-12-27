@@ -1,0 +1,158 @@
+---
+title: "Labs: Deploy Web Infrastructure on Google Cloud Using Terraform (Cloud Run)"
+author: "fadharpra"
+excerpt: "A continuation from DevFest: breaking down Terraform repo structure, explaining providers/variables/main, and deploying Cloud Run until a public, no-auth URL is live."
+date: 2025-12-24
+tags: ["Terraform", "GCP", "Cloud Run", "DevFest", "GDG Bogor", "DevOps", "Infrastructure as Code"]
+---
+
+import { FileTree, Steps, Tabs, TabItem, Code } from "@astrojs/starlight/components";
+
+> This is a continuation of [Part 1](https://blog.fadharpra.id/blog/installing-terraform/). Here we focus on the “fun part”: **breaking down Terraform code** and actually **deploying an application to Cloud Run** so it’s publicly accessible.
+
+## Quick Context (DevFest Mode)
+
+In the talk **“From Code to Automated Web Infrastructure on Google Cloud with Terraform”**, my goal was simple:
+- start from Terraform code
+- end with a real, live web service on Google Cloud
+
+Infrastructure deployed in this Part 2:
+- **Cloud Run (fully managed)**
+- Public service (no auth) via IAM binding **roles/run.invoker** to **allUsers**
+
+> Perfect for stage demos: fast, repeatable, and no VM headaches.
+
+---
+
+## Directory Structure
+
+<FileTree>
+- **Terraform-Devfest-Dev-Demo/**
+  - service-account-gcp-your.json
+  - providers.tf
+  - variables.tf
+  - main.tf
+</FileTree>
+
+📝 Note:
+- The `*.json` file is a service account key (credential). For public repositories, **never commit this file**.
+
+---
+
+## Prerequisites
+
+<Steps>
+  1. Terraform installed (Part 1)
+  2. A GCP project with billing enabled
+  3. A service account with minimum required permissions for Cloud Run
+  4. Required APIs enabled
+</Steps>
+
+### Required APIs
+
+```txt
+run.googleapis.com
+iam.googleapis.com
+cloudresourcemanager.googleapis.com
+```
+
+```bash
+gcloud services enable run.googleapis.com iam.googleapis.com cloudresourcemanager.googleapis.com
+```
+
+---
+
+## Breaking Down the Terraform Files
+
+### providers.tf — Provider & Authentication
+
+```hcl
+terraform {
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = "7.12.0"
+    }
+  }
+}
+
+provider "google" {
+  credentials = file(var.gcp_svc_key)
+  project     = var.gcp_project
+  region      = var.gcp_region
+}
+```
+
+---
+
+### variables.tf — Demo-Friendly Defaults
+
+```hcl
+variable "gcp_svc_key" {
+  default = "service-account-google-your.json"
+}
+
+variable "gcp_project" {
+  default = "your-gcp-project-id"
+}
+
+variable "gcp_region" {
+  default = "asia-southeast2"
+}
+
+variable "cloud_run_service_name" {
+  default = "devfest-demo"
+}
+
+variable "container_image" {
+  default = "docker.io/fadharpra/devfest-demo:1.6"
+}
+```
+
+---
+
+### main.tf — Cloud Run Service
+
+```hcl
+resource "google_cloud_run_v2_service" "app" {
+  name     = var.cloud_run_service_name
+  location = var.gcp_region
+  ingress  = "INGRESS_TRAFFIC_ALL"
+
+  scaling {
+    max_instance_count = 3
+  }
+
+  template {
+    containers {
+      image = var.container_image
+    }
+  }
+}
+```
+
+---
+
+## Deploy Steps
+
+```bash
+terraform init
+terraform plan
+terraform apply
+```
+
+---
+
+## Output URL
+
+```hcl
+output "cloud_run_url" {
+  value = google_cloud_run_v2_service.app.uri
+}
+```
+
+---
+
+## Conclusion
+
+Simple Terraform structure, fast Cloud Run deployment, and instant demo results.
