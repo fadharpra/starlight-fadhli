@@ -1,4 +1,27 @@
 export const Translations = {
+  id: {
+    'starlightBlog.authors.count_one': '{{count}} post by {{author}}',
+    'starlightBlog.authors.count_other': '{{count}} posts by {{author}}',
+    'starlightBlog.metrics.readingTime.minutes': ' - {{count}} min read',
+    'starlightBlog.metrics.words_one': ' - {{count}} word',
+    'starlightBlog.metrics.words_other': ' - {{count}} words',
+    'starlightBlog.pagination.prev': 'Newer posts',
+    'starlightBlog.pagination.next': 'Older posts',
+    'starlightBlog.post.date': '{{date, datetime(dateStyle: medium)}}',
+    'starlightBlog.post.lastUpdate':
+      ' - Last update: <time datetime="{{isoDate}}">{{date, datetime(dateStyle: medium)}}</time>',
+    'starlightBlog.post.draft': 'Draft',
+    'starlightBlog.post.featured': 'Featured',
+    'starlightBlog.post.tags': 'Tags:',
+    'starlightBlog.sidebar.all': 'All posts',
+    'starlightBlog.sidebar.featured': 'Featured posts',
+    'starlightBlog.sidebar.recent': 'Recent posts',
+    'starlightBlog.sidebar.tags': 'Tags',
+    'starlightBlog.sidebar.authors': 'Authors',
+    'starlightBlog.sidebar.rss': 'RSS',
+    'starlightBlog.tags.count_one': '{{count}} post with the tag “{{tag}}”',
+    'starlightBlog.tags.count_other': '{{count}} posts with the tag “{{tag}}”',
+  },
   en: {
     'starlightBlog.authors.count_one': '{{count}} post by {{author}}',
     'starlightBlog.authors.count_other': '{{count}} posts by {{author}}',
