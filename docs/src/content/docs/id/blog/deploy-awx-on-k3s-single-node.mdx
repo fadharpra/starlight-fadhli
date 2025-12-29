@@ -1,0 +1,148 @@
+---
+title: "Deploy AWX di k3s Single Node untuk Automation Ansible"
+author: "fadharpra"
+excerpt: "Pengalaman deploy AWX di atas k3s single-node—ringan, cepat, dan cukup stabil buat homelab maupun internal automation."
+date: 2025-12-29
+tags: ["Kubernetes", "k3s", "AWX", "Ansible", "DevOps", "Homelab"]
+---
+
+Ada satu fase di hidup seorang infra / DevOps engineer di mana **Ansible CLI aja mulai terasa kurang**.  
+Playbook makin banyak, inventory makin kompleks, credential makin sensitif, dan akhirnya muncul kebutuhan:
+
+> “Gua butuh UI, RBAC, logging, tapi gak mau ribet setup Kubernetes gede.”
+
+Di titik itu, **AWX** jadi pilihan yang masuk akal.  
+Dan biar gak overkill, gua pilih **k3s** sebagai pondasinya.
+
+Tulisan ini bukan best-practice enterprise, tapi **catatan jujur dari setup lab** yang:
+- Ringan
+- Cepat
+- Cukup rapi
+- dan realistis buat dipakai harian
+
+## AWX, Ansible Tower, atau Red Hat AAP?
+
+Secara resmi, jawabannya adalah:
+- **Ansible Tower** (sudah deprecated)
+- **Red Hat Ansible Automation Platform (AAP)**
+
+Masalahnya?
+- AAP **berbayar**
+- Pricing sering kali **overkill** untuk lab, internal tools, atau tim kecil
+- Support enterprise belum tentu jadi kebutuhan utama
+
+Di titik ini, **AWX** muncul sebagai opsi yang masuk akal:
+- Open-source
+- Upstream dari Ansible Tower
+- Fitur inti (UI, RBAC, scheduling, logging) tetap ada
+- Bisa jalan di Kubernetes ringan seperti **k3s**
+
+Kalau kalian butuh SLA, support resmi, dan compliance ketat — **AAP tetap pilihan yang benar**.  
+Tapi kalau yang dicari adalah **fungsi dan fleksibilitas**, AWX sudah lebih dari cukup.
+
+## Tujuan Setup
+
+Target gua sederhana:
+- Kubernetes **single-node**
+- Setup cepat
+- Proof-of-concept
+- Gak perlu ribet ingress
+- AWX bisa langsung diakses
+- Cocok buat **homelab & internal automation**
+- Tim kecil yang butuh kontrol tapi gak butuh kontrak enterprise
+
+Bukan HA, bukan production-grade, tapi **usable**.
+
+## Environment Overview
+
+- Ubuntu Server 22.04
+- 1 VM / bare metal
+- Resource minimum:
+  - 2 vCPU
+  - 4 GB RAM (8 GB lebih nyaman)
+- Internet access
+
+## Step 1 — Nyiapin Package yang Diperlukan
+
+```bash
+sudo apt update
+sudo apt install -y git build-essential curl
+```
+
+## Step 2 — Install k3s
+
+```bash
+curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--write-kubeconfig-mode=644" sh -
+```
+
+Cek node:
+```bash
+kubectl get nodes -o wide
+```
+
+## Step 3 — Cek Komponen Cluster
+
+```bash
+kubectl get all -n kube-system
+```
+
+## Step 4 — Deploy AWX Operator
+
+```bash
+git clone https://github.com/ansible/awx-operator.git
+cd awx-operator
+git checkout tags/2.19.1
+export VERSION=2.19.1
+make deploy
+```
+
+## Step 5 — Secret Admin
+
+```bash
+kubectl create secret generic awx-admin-password \
+  --from-literal=password='<STRONG_PASSWORD>' \
+  -n awx
+```
+
+## Step 6 — Deploy AWX Instance
+
+```yaml
+apiVersion: awx.ansible.com/v1beta1
+kind: AWX
+metadata:
+  name: awx-production
+  namespace: awx
+spec:
+  admin_user: admin
+  admin_password_secret: awx-admin-password
+  service_type: nodeport
+```
+
+```bash
+kubectl apply -f awx-prod.yml
+kubectl get pods -n awx -w
+```
+
+## Step 7 — Akses AWX
+
+```bash
+kubectl get svc -n awx
+```
+
+Akses via:
+```
+http://<NODE_IP>:<NODEPORT>
+```
+
+## Penutup
+
+AWX + k3s itu kombinasi yang underrated.
+Bukan buat semua orang, tapi pas banget buat engineer yang:
+- Pragmatis
+- Suka setup rapi
+- dan pengen automation yang beneran kepake
+
+Kalau kalian lagi di fase “gua butuh UI tapi gak mau ribet”,
+setup ini layak dicoba.
+
+Happy automating ☕

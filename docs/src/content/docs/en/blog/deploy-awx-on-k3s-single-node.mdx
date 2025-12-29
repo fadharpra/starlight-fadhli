@@ -1,0 +1,251 @@
+---
+title: "Deploy AWX on k3s Single Node for Ansible Automation"
+author: "fadharpra"
+excerpt: "A practical walkthrough of deploying AWX on a single-node k3s cluster—lightweight, fast, and suitable for homelab or internal automation."
+date: 2025-12-29
+tags: ["Kubernetes", "k3s", "AWX", "Ansible", "DevOps", "Homelab"]
+---
+
+There comes a point in almost every infrastructure or DevOps engineer’s journey when **Ansible CLI alone no longer feels enough**.  
+Playbooks keep growing, inventories get more complex, credentials become sensitive, and eventually a question appears:
+
+> “I need a UI, RBAC, and job history — but I don’t want to run a full-blown Kubernetes stack.”
+
+That’s where **AWX** starts to make sense.  
+And to keep things lightweight, **k3s** becomes a very reasonable foundation.
+
+This article is not an enterprise best practice guide.  
+It’s a **practical lab note** — simple, fast, tidy enough, and realistic for daily use.
+
+## AWX vs Ansible Tower vs Red Hat AAP
+
+In many teams, the initial requirement is simple:
+**“We need Ansible, but with a UI, RBAC, and job history.”**
+
+Officially, the answers are:
+- **Ansible Tower** (now deprecated)
+- **Red Hat Ansible Automation Platform (AAP)**
+
+The challenge is:
+- AAP is **commercial**
+- Pricing can be **overkill** for labs or small internal teams
+- Enterprise support is not always a strict requirement
+
+This is where **AWX** becomes a pragmatic choice:
+- Open-source
+- Upstream project of Ansible Tower
+- Core features like UI, RBAC, scheduling, and logging are available
+- Can run on lightweight Kubernetes distributions such as **k3s**
+
+If you require official support, strict compliance, and SLAs, **Red Hat AAP remains the right choice**.  
+But if flexibility and functionality are the priority, **AWX is often more than enough**.
+
+---
+
+## Setup Goal
+
+The goal of this setup is intentionally modest:
+- **Single-node Kubernetes**
+- Fast installation
+- Proof-of-concept environments
+- No complex ingress configuration
+- AWX accessible immediately
+- Suitable for **homelab or internal automation**
+- Small teams that need control without enterprise overhead
+
+Not HA. Not enterprise-grade. But **usable**.
+
+---
+
+## Environment Overview
+
+- Ubuntu Server 22.04
+- 1 VM or bare metal node
+- Minimum resources:
+  - 2 vCPU
+  - 4 GB RAM (8 GB recommended)
+- Internet access
+
+---
+
+## Step 1 — Preparing the Require Package
+
+Start with the essentials. Nothing fancy, but explicit.
+
+```bash
+sudo apt update
+sudo apt install -y git build-essential curl
+```
+
+---
+
+## Step 2 — Installing k3s
+
+One of the reasons k3s is appealing:
+- Single binary
+- Bundled container runtime
+- Built-in Traefik
+- Built-in local storage provisioner
+
+Installation is literally one command:
+
+```bash
+curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="--write-kubeconfig-mode=644" sh -
+```
+
+The `--write-kubeconfig-mode=644` flag allows `kubectl` usage without sudo.
+
+Verify the node:
+
+```bash
+kubectl get nodes -o wide
+```
+
+Proceed once the node is `Ready`.
+
+---
+
+## Step 3 — Verifying Cluster Components
+
+This step is often skipped, but it’s useful as a sanity check.
+
+```bash
+kubectl get all -n kube-system
+```
+
+You should see components such as:
+- `coredns`
+- `metrics-server`
+- `local-path-provisioner`
+- `traefik`
+- `svclb-traefik`
+
+Seeing Traefik assigned an **external IP from your LAN subnet** is expected behavior in k3s.
+
+---
+
+## Step 4 — Deploying the AWX Operator
+
+AWX is deployed exclusively via an operator.
+
+Clone the official repository:
+
+```bash
+git clone https://github.com/ansible/awx-operator.git
+cd awx-operator
+```
+
+Checkout a stable version:
+
+```bash
+git checkout tags/2.19.1
+export VERSION=2.19.1
+make deploy
+```
+
+The detached HEAD warning is expected when checking out a tag.
+
+Verify the operator:
+
+```bash
+kubectl get all -n awx
+```
+
+Ensure the controller manager pod is in `Running` state.
+
+---
+
+## Step 5 — Creating the AWX Admin Secret
+
+Before deploying the AWX instance, the admin password must exist.
+
+```bash
+kubectl create secret generic awx-admin-password \
+  --from-literal=password='<STRONG_PASSWORD>' \
+  -n awx
+```
+
+Confirm:
+
+```bash
+kubectl get secrets -n awx
+```
+
+---
+
+## Step 6 — Deploying the AWX Instance
+
+Create the manifest file `awx-prod.yml`:
+
+```yaml
+apiVersion: awx.ansible.com/v1beta1
+kind: AWX
+metadata:
+  name: awx-production
+  namespace: awx
+spec:
+  admin_user: admin
+  admin_password_secret: awx-admin-password
+  service_type: nodeport
+```
+
+Apply the manifest:
+
+```bash
+kubectl apply -f awx-prod.yml
+kubectl get pods -n awx -w
+```
+
+At this stage, several pods will be created, including PostgreSQL, awx-web, and awx-task.  
+This is the most resource-intensive part — give it some time.
+
+---
+
+## Step 7 — Accessing AWX
+
+Retrieve the NodePort service:
+
+```bash
+kubectl get svc -n awx
+```
+
+Access AWX using:
+
+```
+http://<NODE_IP>:<NODEPORT>
+```
+
+Login credentials:
+- **Username:** admin
+- **Password:** value from the secret
+
+---
+
+## Honest Notes After Setup
+
+This setup is:
+- ❌ Not highly available
+- ❌ Not enterprise production-ready
+- ✅ Fast to deploy
+- ✅ Lightweight
+- ✅ Ideal for labs and internal usage
+
+It works well if you:
+- Are transitioning from Ansible CLI
+- Need RBAC and job history
+- Want visibility without full Kubernetes complexity
+
+---
+
+For a starting point, however, this setup is more than sufficient.
+
+---
+
+## Closing Thoughts
+
+AWX on k3s is an underrated combination.  
+It’s not for everyone, but it fits engineers who value pragmatism over complexity.
+
+If you need automation **that actually gets used**, this setup is worth trying.
+
+Happy automating ☕
