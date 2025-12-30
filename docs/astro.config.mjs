@@ -15,6 +15,10 @@ export default defineConfig({
         en: { label: 'English', lang: 'en' },
       },
 
+      components: {
+        Head: './src/layouts/CustomHead.astro',
+      },
+
       customCss: ['./src/styles/custom.css'],
       editLink: {
         baseUrl: 'https://github.com/fadharpra/starlight-fadhli/edit/prod/docs/',
