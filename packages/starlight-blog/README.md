@@ -1,4 +1,4 @@
-# (Fadhli Blog)[https://blog.fadharpra.id]
+# [Fadhli Blog](https://blog.fadharpra.id)
 
 Personal technical blog powered by **Astro + Starlight**, focused on infrastructure, DevOps, cloud, automation, and real-world engineering notes.
 
