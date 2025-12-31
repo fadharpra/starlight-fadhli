@@ -47,7 +47,7 @@ export default defineConfig({
         { href: 'https://cloud.umami.is/share/HOsxHBERERw4R2So/fadharpra.id', icon: 'seti:default', label: 'umami.is' },
       ],
 
-      title: '',
+      title: 'fadharpra | Personal Blog',
       logo: {
         src: './public/logo-fadharpra-blog.png',
         alt: 'fadharpra logo',
