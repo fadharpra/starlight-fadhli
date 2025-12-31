@@ -1,41 +1,145 @@
-<div align="center">
-  <h1>starlight-blog 📰</h1>
-  <p>Starlight plugin to add a blog to your documentation.</p>
-  <p>
-    <a href="https://i.imgur.com/pG51i2X.png" title="Screenshot of starlight-blog">
-      <img alt="Screenshot of starlight-blog" src="https://i.imgur.com/pG51i2X.png" width="520" />
-    </a>
-  </p>
-</div>
+# (Fadhli Blog)[https://blog.fadharpra.id]
 
-<div align="center">
-  <a href="https://github.com/HiDeoo/starlight-blog/actions/workflows/integration.yml">
-    <img alt="Integration Status" src="https://github.com/HiDeoo/starlight-blog/actions/workflows/integration.yml/badge.svg" />
-  </a>
-  <a href="https://github.com/HiDeoo/starlight-blog/blob/main/LICENSE">
-    <img alt="License" src="https://badgen.net/github/license/HiDeoo/starlight-blog" />
-  </a>
-  <br />
-</div>
+Personal technical blog powered by **Astro + Starlight**, focused on infrastructure, DevOps, cloud, automation, and real-world engineering notes.
 
-## Getting Started
+Live site: https://blog.fadharpra.id
 
-Want to get started immediately? Check out the [getting started guide](https://starlight-blog-docs.vercel.app/getting-started/) or check out the [demo](https://starlight-blog-docs.vercel.app//blog/) to see the plugin in action.
+---
 
-## Features
+## 📌 About This Blog
 
-A [Starlight](https://starlight.astro.build) plugin to add a blog to your documentation site.
+This blog is built using the **Starlight Blog Template** by HiDeoo:
 
-- Link to the blog in the header
-- Post list with pagination
-- Global and per-post authors
-- Tags
-- Cover images
-- Custom sidebar with recent/featured posts and tags
-- RSS
+👉 https://github.com/HiDeoo/starlight-blog
 
-## License
+The template is extended and customized to support:
+- Technical long-form articles
+- MDX-based content
+- Code-heavy posts (Terraform, Ansible, Linux, Docker, etc.)
+- Bilingual content (ID / EN)
 
-Licensed under the MIT License, Copyright © HiDeoo.
+This is primarily a **personal blog**, but contributions are welcome.
 
-See [LICENSE](https://github.com/HiDeoo/starlight-blog/blob/main/LICENSE) for more information.
+---
+
+## ✍️ Contributing
+
+I’m open to contributions if you want to:
+- Share technical articles
+- Write tutorials, labs, or case studies
+- Contribute knowledge related to DevOps, Infra, Cloud, Linux, Automation, or related topics
+
+### Contribution Flow (Recommended)
+
+The contribution process uses a standard **GitHub Pull Request (PR)** flow:
+
+1. Fork this repository
+2. Create a new branch from `prod`
+3. Add your article under:
+   ```
+   src/content/blog/
+   ```
+4. Write your post in **MDX** format
+5. Submit a **Pull Request**
+6. I’ll review it before merging
+
+> All submissions are subject to review.  
+> I may request edits or adjustments before publishing.
+
+---
+
+## 📝 Writing Guidelines
+
+Some basic rules to keep things consistent:
+
+- Use **Markdown / MDX**
+- Include frontmatter metadata:
+  ```yaml
+  ---
+  title: "Your Article Title"
+  author: "your-name"
+  date: YYYY-MM-DD
+  tags: ["DevOps", "Linux", "Cloud"]
+  ---
+  ```
+- Original content only (no copy-paste from paid courses or copyrighted materials)
+- Clear explanations are preferred over buzzwords
+- Casual tone is okay, clarity is mandatory
+
+---
+
+## 🌐 Language
+
+⚠️ **Important**
+
+This blog enforces **mandatory bilingual content (EN / ID)**.
+
+Due to how **Starlight language routing and listing** works, **every article must exist in both languages**. If one language is missing, switching languages will cause a broken page or 404 because the article is already listed.
+
+### Required Languages
+
+Each article **must have two versions**:
+- **English (EN)**
+- **Bahasa Indonesia (ID)**
+
+Example structure:
+```
+src/content/blog/en/your-article.mdx
+src/content/blog/id/your-article.mdx
+```
+
+### Translation Rules
+
+- Contributors may:
+  - Write the article in **one language first** (their native language)
+  - Provide the second language as a translation
+
+- Translation methods:
+  - **Manual translation** is preferred
+  - **AI-assisted translation is allowed**, but:
+    - Technical terms must be reviewed carefully
+    - The contributor is responsible for correctness
+
+- If the translation quality is insufficient:
+  - The PR may be requested for revision, or
+  - The maintainer may adjust the translation before merging
+
+### Why This Is Mandatory
+
+- Starlight generates article listings per language
+- Missing language files will break navigation when switching languages
+- Enforcing bilingual content guarantees:
+  - Consistent UX
+  - No broken links
+  - Clean language switching
+
+---
+
+## 🚫 What This Blog Is NOT
+
+- Marketing content
+- SEO spam
+- AI-generated low-effort articles
+- Plagiarized content
+
+---
+
+## 📬 Questions or Ideas?
+
+If you’re unsure whether your idea fits:
+- Open a **GitHub Issue**, or
+- Mention it directly in your Pull Request
+
+---
+
+## 📄 License and Credits
+
+Content and code follow their respective licenses.  
+Contributed articles remain credited to their original authors.
+- Template: https://github.com/HiDeoo/starlight-blog
+- Built with Astro & Starlight
+
+---
+
+
+
